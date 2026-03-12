@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RankPost</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='16' fill='%231a1a1a'/><path d='M25 70V30h18c8 0 14 5 14 12 0 5-3 9-7 11l10 17h-10l-9-15h-7v15zm9-23h8c3 0 5-2 5-5s-2-5-5-5h-8z' fill='%23fff'/><path d='M60 55l8-25h8l8 25h-8l-1.5-5h-9L64 55zm6-10h5.5l-2.7-10z' fill='%23999'/></svg>">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+    <div class="sidebar-logo"><svg width="20" height="20" viewBox="0 0 100 100" style="vertical-align:-3px;margin-right:8px"><rect width="100" height="100" rx="16" fill="#1a1a1a"/><path d="M25 70V30h18c8 0 14 5 14 12 0 5-3 9-7 11l10 17h-10l-9-15h-7v15zm9-23h8c3 0 5-2 5-5s-2-5-5-5h-8z" fill="#fff"/><path d="M60 55l8-25h8l8 25h-8l-1.5-5h-9L64 55zm6-10h5.5l-2.7-10z" fill="#999"/></svg>RankPost</div>
+    <nav class="sidebar-nav">
+        <button onclick="showTab('create')" id="tab-create" class="nav-item active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            Nowy artykul
+        </button>
+        <button onclick="showTab('generator')" id="tab-generator" class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Generator
+        </button>
+        <button onclick="showTab('bulk')" id="tab-bulk" class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Bulk
+        </button>
+        <button onclick="showTab('articles')" id="tab-articles" class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+            Historia
+        </button>
+        <button onclick="showTab('styles')" id="tab-styles" class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            Szablony stylow
+        </button>
+        <button onclick="showTab('settings')" id="tab-settings" class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            Ustawienia
+        </button>
+    </nav>
+    <div class="sidebar-footer">
+        <button onclick="toggleDarkMode()" id="theme-toggle" class="theme-toggle">
+            <svg id="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            <svg id="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" class="hidden"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+            <span id="theme-label">Ciemny motyw</span>
+        </button>
+        RankPost v1.0
+    </div>
+</aside>
+
+<!-- Main content -->
+<div class="main-content">
+
+    <!-- ======= TAB: Create ======= -->
+    <div id="panel-create" class="tab-panel">
+        <div class="page-header">
+            <h2>Nowy artykul</h2>
+        </div>
+        <div class="page-body">
+
+            <!-- Steps bar -->
+            <div class="steps-bar">
+                <div id="step-ind-1" class="step-dot active">1. Formularz</div>
+                <div id="step-ind-2" class="step-dot">2. Outline</div>
+                <div id="step-ind-3" class="step-dot">3. Artykul</div>
+                <div id="step-ind-4" class="step-dot">4. SEO & Tagi</div>
+                <div id="step-ind-5" class="step-dot">5. Publikacja</div>
+            </div>
+
+            <!-- STEP 1: Form -->
+            <div id="step-1" class="step">
+                <div class="card">
+                    <div class="card-title">Podstawowe</div>
+                    <div class="form-grid">
+                        <div>
+                            <label class="label">Serwis WordPress</label>
+                            <select id="wp-site" class="input"><option value="">-- ladowanie --</option></select>
+                        </div>
+                        <div>
+                            <label class="label">Model AI</label>
+                            <select id="ai-model" class="input">
+                                <option value="claude-cli" selected>Claude CLI (lokalne)</option>
+                                <option value="claude">Claude API (Sonnet 4)</option>
+                                <option value="gpt">GPT-4o</option>
+                            </select>
+                        </div>
+                        <div class="full">
+                            <label class="label">Temat artykulu</label>
+                            <input id="topic" type="text" class="input" placeholder="np. Jak wybrac najlepszy hosting dla WordPress">
+                        </div>
+                        <div class="full">
+                            <label class="label">Linki zrodlowe (po jednym w linii)</label>
+                            <textarea id="source-urls" class="input" style="height:80px" placeholder="https://example.com/article1&#10;https://example.com/article2"></textarea>
+                        </div>
+                        <div class="full">
+                            <label class="label">Pliki zrodlowe (PDF, DOCX, XLSX, TXT)</label>
+                            <div class="file-upload-area" id="file-drop-zone">
+                                <input type="file" id="source-files" multiple accept=".pdf,.docx,.xlsx,.txt" style="display:none">
+                                <div class="file-upload-prompt" onclick="document.getElementById('source-files').click()">
+                                    Kliknij lub przeciagnij pliki tutaj
+                                </div>
+                                <div id="uploaded-files-list"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Styl i instrukcje</div>
+                    <div class="form-grid">
+                        <div>
+                            <label class="label">Styl artykulu (szablon)</label>
+                            <select id="style-select" class="input"><option value="">-- wybierz --</option></select>
+                        </div>
+                        <div>
+                            <label class="label">Lub wpisz wlasny styl</label>
+                            <input id="style-custom" type="text" class="input" placeholder="np. Lekki, humorystyczny, z metaforami">
+                        </div>
+                        <div class="full">
+                            <label class="label">Dodatkowe uwagi / instrukcje dla AI</label>
+                            <textarea id="additional-notes" class="input" style="height:70px" placeholder="np. Wspomnij o firmie X, unikaj porownywania z Y..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Parametry artykulu</div>
+                    <div class="form-grid">
+                        <div>
+                            <label class="label">Jezyk</label>
+                            <select id="language" class="input">
+                                <option value="pl">Polski</option>
+                                <option value="en">English</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="label">Dlugosc (slowa)</label>
+                            <select id="target-length" class="input">
+                                <option value="500">Krotki (~500)</option>
+                                <option value="1200" selected>Sredni (~1200)</option>
+                                <option value="2500">Dlugi (~2500)</option>
+                                <option value="custom">Wlasna wartosc</option>
+                            </select>
+                            <input id="target-length-custom" type="number" class="input hidden" style="margin-top:8px" placeholder="Liczba slow">
+                        </div>
+                        <div>
+                            <label class="label">Akapity od</label>
+                            <input id="paragraphs-min" type="number" value="4" min="1" max="20" class="input">
+                        </div>
+                        <div>
+                            <label class="label">Akapity do</label>
+                            <input id="paragraphs-max" type="number" value="8" min="1" max="30" class="input">
+                        </div>
+                        <div>
+                            <label class="label">Tagi od</label>
+                            <input id="tags-min" type="number" value="3" min="1" max="20" class="input">
+                        </div>
+                        <div>
+                            <label class="label">Tagi do</label>
+                            <input id="tags-max" type="number" value="8" min="1" max="30" class="input">
+                        </div>
+                        <div class="full">
+                            <div class="check-row">
+                                <label class="check-label"><input id="include-intro" type="checkbox" checked> Wstep</label>
+                                <label class="check-label"><input id="include-summary" type="checkbox" checked> Podsumowanie</label>
+                                <label class="check-label"><input id="generate-tags" type="checkbox" checked> Generuj tagi</label>
+                                <label class="check-label"><input id="generate-seo" type="checkbox" checked> Meta SEO</label>
+                                <label class="check-label"><input id="generate-image" type="checkbox"> Zdjecie AI</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="btn-row">
+                    <button onclick="generateOutline()" id="btn-outline" class="btn-primary">Generuj outline</button>
+                </div>
+            </div>
+
+            <!-- STEP 2: Outline -->
+            <div id="step-2" class="step hidden">
+                <div class="card">
+                    <div class="card-title">Outline artykulu</div>
+                    <div style="margin-bottom:16px">
+                        <label class="label">Tytul</label>
+                        <input id="outline-title" type="text" class="input">
+                    </div>
+                    <div id="outline-sections"></div>
+                    <button onclick="addSection()" class="btn-secondary" style="margin-top:12px">+ Dodaj sekcje</button>
+                </div>
+                <div class="btn-row">
+                    <button onclick="goToStep(1)" class="btn-secondary">Wstecz</button>
+                    <button onclick="generateArticle()" id="btn-generate" class="btn-primary">Generuj artykul</button>
+                </div>
+            </div>
+
+            <!-- STEP 3: Article WYSIWYG -->
+            <div id="step-3" class="step hidden">
+                <div class="card">
+                    <div class="card-title">Edytuj artykul</div>
+                    <div class="gen-wysiwyg-toolbar">
+                        <button type="button" onclick="wizExecCmd('bold')" title="Pogrubienie"><b>B</b></button>
+                        <button type="button" onclick="wizExecCmd('italic')" title="Kursywa"><i>I</i></button>
+                        <button type="button" onclick="wizExecCmd('underline')" title="Podkreslenie"><u>U</u></button>
+                        <span class="toolbar-sep"></span>
+                        <button type="button" onclick="wizExecCmd('formatBlock','<h2>')" title="Naglowek H2">H2</button>
+                        <button type="button" onclick="wizExecCmd('formatBlock','<h3>')" title="Naglowek H3">H3</button>
+                        <button type="button" onclick="wizExecCmd('formatBlock','<p>')" title="Akapit">P</button>
+                        <span class="toolbar-sep"></span>
+                        <button type="button" onclick="wizExecCmd('insertUnorderedList')" title="Lista punktowana">UL</button>
+                        <button type="button" onclick="wizExecCmd('insertOrderedList')" title="Lista numerowana">OL</button>
+                        <span class="toolbar-sep"></span>
+                        <button type="button" onclick="wizToggleHtml()" id="wiz-html-toggle" title="Przelacz HTML">HTML</button>
+                    </div>
+                    <div id="article-preview" class="gen-wysiwyg-editor prose" contenteditable="true"></div>
+                    <textarea id="article-html" class="input hidden" style="height:300px;font-family:monospace;font-size:13px"></textarea>
+                </div>
+                <div class="btn-row">
+                    <button onclick="goToStep(2)" class="btn-secondary">Wstecz</button>
+                    <button onclick="addInternalLinks()" class="btn-secondary">Dodaj linki wewnetrzne</button>
+                    <button onclick="goToSeoStep()" id="btn-seo" class="btn-primary">Dalej: SEO & Tagi</button>
+                </div>
+            </div>
+
+            <!-- STEP 4: SEO & Tags -->
+            <div id="step-4" class="step hidden">
+                <div class="card">
+                    <div class="card-title">Meta SEO</div>
+                    <div class="form-grid">
+                        <div class="full">
+                            <label class="label">Meta Title</label>
+                            <input id="meta-title" type="text" class="input" maxlength="70" oninput="updateSerpPreview()">
+                            <span id="meta-title-count" style="font-size:12px;color:var(--text-muted)"></span>
+                        </div>
+                        <div class="full">
+                            <label class="label">Meta Description</label>
+                            <textarea id="meta-description" class="input" style="height:56px" maxlength="160" oninput="updateSerpPreview()"></textarea>
+                            <span id="meta-desc-count" style="font-size:12px;color:var(--text-muted)"></span>
+                        </div>
+                        <div class="full">
+                            <label class="label">Slug</label>
+                            <input id="slug" type="text" class="input" oninput="updateSerpPreview()">
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Podglad SERP (Google)</div>
+                    <div id="serp-preview" class="serp-preview">
+                        <div class="serp-url" id="serp-url">example.com > artykul</div>
+                        <div class="serp-title" id="serp-title">Tytul artykulu</div>
+                        <div class="serp-desc" id="serp-desc">Opis artykulu pojawi sie tutaj...</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Tagi & Kategorie</div>
+                    <div style="margin-bottom:16px">
+                        <label class="label">Tagi (oddzielone przecinkami)</label>
+                        <input id="tags-list" type="text" class="input" placeholder="tag1, tag2, tag3">
+                    </div>
+                    <div style="margin-bottom:16px">
+                        <label class="label">Kategorie</label>
+                        <div id="categories-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"></div>
+                    </div>
+                </div>
+                <div class="card" id="featured-image-section">
+                    <div class="card-title">Zdjecie wyrozniajace</div>
+                    <div id="featured-image-preview"></div>
+                </div>
+                <div class="btn-row">
+                    <button onclick="goToStep(3)" class="btn-secondary">Wstecz</button>
+                    <button onclick="goToStep(5)" class="btn-primary">Dalej: Publikacja</button>
+                </div>
+            </div>
+
+            <!-- STEP 5: Publish -->
+            <div id="step-5" class="step hidden">
+                <div class="card">
+                    <div class="card-title">Podsumowanie</div>
+                    <div class="summary-table">
+                        <p><strong>Tytul:</strong> <span id="pub-title"></span></p>
+                        <p><strong>WP Site:</strong> <span id="pub-site"></span></p>
+                        <p><strong>Meta Title:</strong> <span id="pub-meta-title"></span></p>
+                        <p><strong>Slug:</strong> <span id="pub-slug"></span></p>
+                        <p><strong>Tagi:</strong> <span id="pub-tags"></span></p>
+                        <p><strong>Kategorie:</strong> <span id="pub-categories"></span></p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Publikacja</div>
+                    <div class="form-grid">
+                        <div>
+                            <label class="label">Status publikacji</label>
+                            <select id="publish-status" class="input" onchange="toggleScheduleField()">
+                                <option value="draft">Szkic (draft)</option>
+                                <option value="publish">Opublikuj teraz</option>
+                                <option value="future">Zaplanuj na pozniej</option>
+                            </select>
+                        </div>
+                        <div id="schedule-field" class="hidden">
+                            <label class="label">Data i godzina publikacji</label>
+                            <input id="schedule-date" type="datetime-local" class="input">
+                        </div>
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button onclick="goToStep(4)" class="btn-secondary">Wstecz</button>
+                    <button onclick="publishArticle()" id="btn-publish" class="btn-primary">Publikuj na WordPress</button>
+                </div>
+                <div id="publish-result" class="hidden"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======= TAB: Generator ======= -->
+    <div id="panel-generator" class="tab-panel hidden">
+        <div class="page-header"><h2>Generator artykulow</h2></div>
+        <div class="page-body" style="max-width:920px">
+
+            <!-- Generator form -->
+            <div id="gen-form-section">
+                <div class="card">
+                    <div class="card-title">Zrodla i temat</div>
+                    <div class="form-grid">
+                        <div>
+                            <label class="label">Model AI</label>
+                            <select id="gen-ai-model" class="input">
+                                <option value="claude-cli" selected>Claude CLI (lokalne)</option>
+                                <option value="claude">Claude API (Sonnet 4)</option>
+                                <option value="gpt">GPT-4o</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="label">Jezyk</label>
+                            <select id="gen-language" class="input">
+                                <option value="pl">Polski</option>
+                                <option value="en">English</option>
+                            </select>
+                        </div>
+                        <div class="full">
+                            <label class="label">Temat artykulu</label>
+                            <input id="gen-topic" type="text" class="input" placeholder="np. Jak wybrac najlepszy hosting dla WordPress">
+                        </div>
+                        <div class="full">
+                            <label class="label">Linki zrodlowe (po jednym w linii)</label>
+                            <textarea id="gen-source-urls" class="input" style="height:80px" placeholder="https://example.com/article1&#10;https://example.com/article2"></textarea>
+                        </div>
+                        <div class="full">
+                            <label class="label">Pliki zrodlowe (PDF, DOCX, XLSX, TXT)</label>
+                            <div class="file-upload-area" id="gen-file-drop-zone">
+                                <input type="file" id="gen-source-files" multiple accept=".pdf,.docx,.xlsx,.txt" style="display:none">
+                                <div class="file-upload-prompt" onclick="document.getElementById('gen-source-files').click()">
+                                    Kliknij lub przeciagnij pliki tutaj
+                                </div>
+                                <div id="gen-uploaded-files-list"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Styl i instrukcje</div>
+                    <div class="form-grid">
+                        <div>
+                            <label class="label">Styl artykulu (szablon)</label>
+                            <select id="gen-style-select" class="input"><option value="">-- wybierz --</option></select>
+                        </div>
+                        <div>
+                            <label class="label">Lub wpisz wlasny styl</label>
+                            <input id="gen-style-custom" type="text" class="input" placeholder="np. Lekki, humorystyczny, z metaforami">
+                        </div>
+                        <div class="full">
+                            <label class="label">Dodatkowe uwagi / instrukcje dla AI</label>
+                            <textarea id="gen-additional-notes" class="input" style="height:70px" placeholder="np. Wspomnij o firmie X, unikaj porownywania z Y..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Parametry</div>
+                    <div class="form-grid">
+                        <div>
+                            <label class="label">Dlugosc (slowa)</label>
+                            <select id="gen-target-length" class="input">
+                                <option value="500">Krotki (~500)</option>
+                                <option value="1200" selected>Sredni (~1200)</option>
+                                <option value="2500">Dlugi (~2500)</option>
+                                <option value="custom">Wlasna wartosc</option>
+                            </select>
+                            <input id="gen-target-length-custom" type="number" class="input hidden" style="margin-top:8px" placeholder="Liczba slow">
+                        </div>
+                        <div>
+                            <label class="label">Tagi od / do</label>
+                            <div style="display:flex;gap:8px">
+                                <input id="gen-tags-min" type="number" value="3" min="1" max="20" class="input">
+                                <input id="gen-tags-max" type="number" value="8" min="1" max="30" class="input">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="label">Akapity od</label>
+                            <input id="gen-paragraphs-min" type="number" value="4" min="1" max="20" class="input">
+                        </div>
+                        <div>
+                            <label class="label">Akapity do</label>
+                            <input id="gen-paragraphs-max" type="number" value="8" min="1" max="30" class="input">
+                        </div>
+                        <div class="full">
+                            <div class="check-row">
+                                <label class="check-label"><input id="gen-include-intro" type="checkbox" checked> Wstep</label>
+                                <label class="check-label"><input id="gen-include-summary" type="checkbox" checked> Podsumowanie</label>
+                                <label class="check-label"><input id="gen-generate-tags" type="checkbox" checked> Generuj tagi</label>
+                                <label class="check-label"><input id="gen-generate-seo" type="checkbox" checked> Meta SEO</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="btn-row">
+                    <button onclick="runGenerator()" id="btn-run-generator" class="btn-primary">Generuj artykul</button>
+                </div>
+            </div>
+
+            <!-- Generator results -->
+            <div id="gen-results" class="hidden">
+                <div class="card">
+                    <div class="card-title">Tytul</div>
+                    <input id="gen-result-title" type="text" class="input" style="font-size:16px;font-weight:600">
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Tresc artykulu</div>
+                    <div class="gen-wysiwyg-toolbar">
+                        <button type="button" onclick="genExecCmd('bold')" title="Pogrubienie"><b>B</b></button>
+                        <button type="button" onclick="genExecCmd('italic')" title="Kursywa"><i>I</i></button>
+                        <button type="button" onclick="genExecCmd('underline')" title="Podkreslenie"><u>U</u></button>
+                        <span class="toolbar-sep"></span>
+                        <button type="button" onclick="genExecCmd('formatBlock','<h2>')" title="Naglowek H2">H2</button>
+                        <button type="button" onclick="genExecCmd('formatBlock','<h3>')" title="Naglowek H3">H3</button>
+                        <button type="button" onclick="genExecCmd('formatBlock','<p>')" title="Akapit">P</button>
+                        <span class="toolbar-sep"></span>
+                        <button type="button" onclick="genExecCmd('insertUnorderedList')" title="Lista punktowana">UL</button>
+                        <button type="button" onclick="genExecCmd('insertOrderedList')" title="Lista numerowana">OL</button>
+                        <span class="toolbar-sep"></span>
+                        <button type="button" onclick="genToggleHtml()" id="gen-html-toggle" title="Przelacz HTML">HTML</button>
+                    </div>
+                    <div id="gen-result-content" class="gen-wysiwyg-editor prose" contenteditable="true"></div>
+                    <textarea id="gen-result-html" class="input hidden" style="height:300px;font-family:monospace;font-size:13px"></textarea>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">SEO</div>
+                    <div class="form-grid">
+                        <div class="full">
+                            <label class="label">SEO Title</label>
+                            <input id="gen-result-seo-title" type="text" class="input" maxlength="70">
+                            <span id="gen-seo-title-count" style="font-size:12px;color:var(--text-muted)"></span>
+                        </div>
+                        <div class="full">
+                            <label class="label">Meta Description</label>
+                            <textarea id="gen-result-meta-desc" class="input" style="height:56px" maxlength="160"></textarea>
+                            <span id="gen-meta-desc-count" style="font-size:12px;color:var(--text-muted)"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Tagi</div>
+                    <input id="gen-result-tags" type="text" class="input" placeholder="tag1, tag2, tag3">
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Publikacja na WordPress</div>
+                    <div class="form-grid">
+                        <div>
+                            <label class="label">Serwis WordPress</label>
+                            <select id="gen-wp-site" class="input"><option value="">-- wybierz --</option></select>
+                        </div>
+                        <div>
+                            <label class="label">Status publikacji</label>
+                            <select id="gen-publish-status" class="input">
+                                <option value="draft" selected>Szkic (draft)</option>
+                                <option value="publish">Opublikuj</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="btn-row">
+                        <button onclick="genPublishToWp()" class="btn-primary">Publikuj na WordPress</button>
+                    </div>
+                    <div id="gen-publish-result" class="hidden" style="margin-top:12px"></div>
+                </div>
+
+                <div class="btn-row">
+                    <button onclick="genCopyAll()" class="btn-secondary">Kopiuj wszystko</button>
+                    <button onclick="genDownloadHtml()" class="btn-secondary">Pobierz HTML</button>
+                    <button onclick="genReset()" class="btn-secondary">Nowy artykul</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======= TAB: Bulk ======= -->
+    <div id="panel-bulk" class="tab-panel hidden">
+        <div class="page-header"><h2>Bulk generation</h2></div>
+        <div class="page-body" style="max-width:920px">
+            <div class="card">
+                <div class="card-title">Ustawienia</div>
+                <div class="form-grid">
+                    <div>
+                        <label class="label">Model AI</label>
+                        <select id="bulk-ai-model" class="input">
+                            <option value="claude-cli" selected>Claude CLI (lokalne)</option>
+                            <option value="claude">Claude API (Sonnet 4)</option>
+                            <option value="gpt">GPT-4o</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label">Jezyk</label>
+                        <select id="bulk-language" class="input">
+                            <option value="pl">Polski</option>
+                            <option value="en">English</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label">Styl (szablon)</label>
+                        <select id="bulk-style-select" class="input"><option value="">-- wybierz --</option></select>
+                    </div>
+                    <div>
+                        <label class="label">Lub wlasny styl</label>
+                        <input id="bulk-style-custom" type="text" class="input" placeholder="np. Informacyjny">
+                    </div>
+                    <div>
+                        <label class="label">Dlugosc (slowa)</label>
+                        <select id="bulk-target-length" class="input">
+                            <option value="500">Krotki (~500)</option>
+                            <option value="1200" selected>Sredni (~1200)</option>
+                            <option value="2500">Dlugi (~2500)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label">Serwis WP (opcjonalnie)</label>
+                        <select id="bulk-wp-site" class="input"><option value="">-- bez publikacji --</option></select>
+                    </div>
+                    <div>
+                        <label class="label">Status publikacji</label>
+                        <select id="bulk-publish-status" class="input">
+                            <option value="draft" selected>Szkic (draft)</option>
+                            <option value="publish">Opublikuj</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label">Tagi / SEO</label>
+                        <div class="check-row">
+                            <label class="check-label"><input id="bulk-generate-tags" type="checkbox" checked> Generuj tagi</label>
+                            <label class="check-label"><input id="bulk-generate-seo" type="checkbox" checked> Meta SEO</label>
+                        </div>
+                    </div>
+                    <div class="full">
+                        <label class="label">Dodatkowe uwagi</label>
+                        <textarea id="bulk-additional-notes" class="input" style="height:50px" placeholder="Instrukcje dla AI..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Tematy artykulow (po jednym w linii)</div>
+                <textarea id="bulk-topics" class="input" style="height:180px;font-size:13px" placeholder="Jak wybrac hosting dla WordPress&#10;Najlepsze wtyczki SEO w 2025&#10;Poradnik: optymalizacja szybkosci strony"></textarea>
+            </div>
+
+            <div class="btn-row">
+                <button onclick="runBulkGeneration()" id="btn-bulk-run" class="btn-primary">Generuj wszystkie</button>
+                <button onclick="cancelBulk()" id="btn-bulk-cancel" class="btn-danger hidden">Anuluj</button>
+            </div>
+
+            <div id="bulk-progress" class="hidden" style="margin-top:16px">
+                <div class="card">
+                    <div class="card-title">Postep</div>
+                    <div style="background:var(--bg-input);border-radius:4px;height:8px;margin-bottom:12px;overflow:hidden">
+                        <div id="bulk-progress-bar" style="height:100%;background:var(--green);width:0%;transition:width 0.3s"></div>
+                    </div>
+                    <p id="bulk-progress-text" style="font-size:13px;color:var(--text-secondary)"></p>
+                    <div id="bulk-results-list" style="margin-top:12px"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======= TAB: Articles ======= -->
+    <div id="panel-articles" class="tab-panel hidden">
+        <div class="page-header"><h2>Historia artykulow</h2></div>
+        <div class="page-body">
+            <div id="articles-list"></div>
+
+            <!-- Article detail view -->
+            <div id="article-detail" class="hidden">
+                <div class="btn-row" style="margin-top:0;margin-bottom:16px">
+                    <button onclick="closeArticleDetail()" class="btn-secondary">Wstecz do listy</button>
+                    <button onclick="resumeArticleInWizard()" class="btn-primary">Wznow edycje w wizardzie</button>
+                    <button onclick="deleteArticle()" class="btn-danger">Usun</button>
+                </div>
+                <div class="card">
+                    <div class="card-title">Szczegoly</div>
+                    <div class="summary-table">
+                        <p><strong>Tytul:</strong> <span id="detail-title"></span></p>
+                        <p><strong>Status:</strong> <span id="detail-status"></span></p>
+                        <p><strong>WP Site:</strong> <span id="detail-wp-site"></span></p>
+                        <p><strong>WP Post ID:</strong> <span id="detail-wp-post-id"></span></p>
+                        <p><strong>Meta Title:</strong> <span id="detail-meta-title"></span></p>
+                        <p><strong>Slug:</strong> <span id="detail-slug"></span></p>
+                        <p><strong>Tagi:</strong> <span id="detail-tags"></span></p>
+                        <p><strong>Kategorie:</strong> <span id="detail-categories"></span></p>
+                        <p><strong>Utworzono:</strong> <span id="detail-created"></span></p>
+                        <p><strong>Zaktualizowano:</strong> <span id="detail-updated"></span></p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Meta Description</div>
+                    <p id="detail-meta-desc" style="font-size:13px;color:var(--text-secondary)"></p>
+                </div>
+                <div class="card">
+                    <div class="card-title">Tresc artykulu</div>
+                    <div id="detail-content" class="prose" style="border:none;padding:0"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======= TAB: Styles ======= -->
+    <div id="panel-styles" class="tab-panel hidden">
+        <div class="page-header"><h2>Szablony stylow</h2></div>
+        <div class="page-body">
+            <div id="styles-list" style="margin-bottom:24px"></div>
+            <div class="card">
+                <div class="card-title">Dodaj nowy szablon</div>
+                <div class="form-grid">
+                    <div>
+                        <label class="label">Nazwa stylu</label>
+                        <input id="new-style-name" type="text" class="input" placeholder="np. Humorystyczny">
+                    </div>
+                    <div>
+                        <label class="label">Opis (instrukcja dla AI)</label>
+                        <input id="new-style-desc" type="text" class="input" placeholder="Lekki ton, z humorem, angazujacy...">
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button onclick="createStyle()" class="btn-primary">Zapisz szablon</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======= TAB: Settings ======= -->
+    <div id="panel-settings" class="tab-panel hidden">
+        <div class="page-header"><h2>Ustawienia</h2></div>
+        <div class="page-body">
+            <div class="card">
+                <div class="card-title">Klucze API</div>
+                <div class="form-grid">
+                    <div>
+                        <label class="label">OpenAI API Key</label>
+                        <input id="settings-openai-key" type="text" class="input" placeholder="sk-...">
+                    </div>
+                    <div style="display:flex;align-items:flex-end;padding-bottom:2px">
+                        <span id="settings-openai-status"></span>
+                    </div>
+                    <div>
+                        <label class="label">Anthropic API Key (Claude)</label>
+                        <input id="settings-anthropic-key" type="text" class="input" placeholder="sk-ant-...">
+                    </div>
+                    <div style="display:flex;align-items:flex-end;padding-bottom:2px">
+                        <span id="settings-anthropic-status"></span>
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button onclick="saveApiKeys()" class="btn-primary">Zapisz klucze</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Serwisy WordPress</div>
+                <div id="wp-sites-list" style="margin-bottom:20px"></div>
+                <div style="border-top:1px solid var(--border);padding-top:20px">
+                    <div style="font-weight:500;margin-bottom:14px;font-size:14px">Dodaj nowy serwis</div>
+                    <div class="form-grid">
+                        <div>
+                            <label class="label">Nazwa (identyfikator)</label>
+                            <input id="new-wp-name" type="text" class="input" placeholder="np. moj-blog">
+                        </div>
+                        <div>
+                            <label class="label">URL strony</label>
+                            <input id="new-wp-url" type="text" class="input" placeholder="https://example.com">
+                        </div>
+                        <div>
+                            <label class="label">Login WP</label>
+                            <input id="new-wp-user" type="text" class="input" placeholder="admin@example.com">
+                        </div>
+                        <div>
+                            <label class="label">Application Password</label>
+                            <input id="new-wp-password" type="password" class="input" placeholder="xxxx xxxx xxxx xxxx">
+                        </div>
+                    </div>
+                    <div class="btn-row">
+                        <button onclick="addWpSite()" class="btn-primary">Dodaj serwis</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Loading overlay -->
+<div id="loading" class="loading-overlay hidden">
+    <div class="loading-box">
+        <div class="spinner"></div>
+        <p id="loading-text" style="color:var(--text-secondary)">Pracuje...</p>
+    </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
