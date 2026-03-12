@@ -25,6 +25,18 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
             Bulk
         </button>
+        <button onclick="showTab('rewrite')" id="tab-rewrite" class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+            Rewrite
+        </button>
+        <button onclick="showTab('keywords')" id="tab-keywords" class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Keywords
+        </button>
+        <button onclick="showTab('analytics')" id="tab-analytics" class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            Analytics
+        </button>
         <button onclick="showTab('articles')" id="tab-articles" class="nav-item">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
             Historia
@@ -119,6 +131,12 @@
                         <div class="full">
                             <label class="label">Dodatkowe uwagi / instrukcje dla AI</label>
                             <textarea id="additional-notes" class="input" style="height:70px" placeholder="np. Wspomnij o firmie X, unikaj porownywania z Y..."></textarea>
+                        </div>
+                        <div class="full">
+                            <label class="label">Szablon struktury (opcjonalnie)</label>
+                            <select id="structure-template-select" class="input" onchange="applyStructureTemplate()">
+                                <option value="">-- brak, wygeneruj automatycznie --</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -216,9 +234,11 @@
                 </div>
                 <div class="btn-row">
                     <button onclick="goToStep(2)" class="btn-secondary">Wstecz</button>
-                    <button onclick="addInternalLinks()" class="btn-secondary">Dodaj linki wewnetrzne</button>
+                    <button onclick="addInternalLinks()" class="btn-secondary">Linki wewnetrzne</button>
+                    <button onclick="wizContentScore()" class="btn-secondary">Sprawdz jakosc</button>
                     <button onclick="goToSeoStep()" id="btn-seo" class="btn-primary">Dalej: SEO & Tagi</button>
                 </div>
+                <div id="wiz-score-result" class="hidden" style="margin-top:12px"></div>
             </div>
 
             <!-- STEP 4: SEO & Tags -->
@@ -264,6 +284,13 @@
                 <div class="card" id="featured-image-section">
                     <div class="card-title">Zdjecie wyrozniajace</div>
                     <div id="featured-image-preview"></div>
+                    <div id="image-gallery" class="hidden" style="margin-top:12px">
+                        <div class="card-title" style="border:none;padding:0;margin-bottom:8px">Galeria (kliknij aby wybrac)</div>
+                        <div id="image-gallery-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
+                    </div>
+                    <div class="btn-row" style="margin-top:8px">
+                        <button onclick="generateImageGallery()" class="btn-secondary">Generuj wiecej obrazkow</button>
+                    </div>
                 </div>
                 <div class="btn-row">
                     <button onclick="goToStep(3)" class="btn-secondary">Wstecz</button>
@@ -582,6 +609,185 @@
         </div>
     </div>
 
+    <!-- ======= TAB: Rewrite ======= -->
+    <div id="panel-rewrite" class="tab-panel hidden">
+        <div class="page-header"><h2>Rewrite / Paraphrase</h2></div>
+        <div class="page-body" style="max-width:920px">
+            <div id="rewrite-form-section">
+                <div class="card">
+                    <div class="card-title">Zrodlo</div>
+                    <div class="form-grid">
+                        <div>
+                            <label class="label">Model AI</label>
+                            <select id="rw-ai-model" class="input">
+                                <option value="claude-cli" selected>Claude CLI (lokalne)</option>
+                                <option value="claude">Claude API (Sonnet 4)</option>
+                                <option value="gpt">GPT-4o</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="label">Jezyk</label>
+                            <select id="rw-language" class="input">
+                                <option value="pl">Polski</option>
+                                <option value="en">English</option>
+                            </select>
+                        </div>
+                        <div class="full">
+                            <label class="label">URL artykulu do przepisania</label>
+                            <input id="rw-source-url" type="text" class="input" placeholder="https://example.com/article">
+                        </div>
+                        <div class="full">
+                            <label class="label">Lub wklej tekst zrodlowy</label>
+                            <textarea id="rw-source-text" class="input" style="height:150px" placeholder="Wklej tutaj tekst artykulu do przepisania..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Parametry</div>
+                    <div class="form-grid">
+                        <div>
+                            <label class="label">Styl</label>
+                            <select id="rw-style-select" class="input"><option value="">-- wybierz --</option></select>
+                        </div>
+                        <div>
+                            <label class="label">Lub wlasny styl</label>
+                            <input id="rw-style-custom" type="text" class="input" placeholder="np. Ekspercki">
+                        </div>
+                        <div>
+                            <label class="label">Dlugosc (slowa)</label>
+                            <select id="rw-target-length" class="input">
+                                <option value="500">Krotki (~500)</option>
+                                <option value="1200" selected>Sredni (~1200)</option>
+                                <option value="2500">Dlugi (~2500)</option>
+                            </select>
+                        </div>
+                        <div class="full">
+                            <label class="label">Dodatkowe uwagi</label>
+                            <textarea id="rw-additional-notes" class="input" style="height:50px" placeholder="np. Zmien ton na bardziej oficjalny..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button onclick="runRewrite()" class="btn-primary">Przepisz artykul</button>
+                </div>
+            </div>
+
+            <div id="rewrite-results" class="hidden">
+                <div class="card">
+                    <div class="card-title">Tytul</div>
+                    <input id="rw-result-title" type="text" class="input" style="font-size:16px;font-weight:600">
+                </div>
+                <div class="card">
+                    <div class="card-title">Przepisany artykul</div>
+                    <div class="gen-wysiwyg-toolbar">
+                        <button type="button" onclick="rwExecCmd('bold')"><b>B</b></button>
+                        <button type="button" onclick="rwExecCmd('italic')"><i>I</i></button>
+                        <button type="button" onclick="rwExecCmd('underline')"><u>U</u></button>
+                        <span class="toolbar-sep"></span>
+                        <button type="button" onclick="rwExecCmd('formatBlock','<h2>')">H2</button>
+                        <button type="button" onclick="rwExecCmd('formatBlock','<h3>')">H3</button>
+                        <button type="button" onclick="rwExecCmd('formatBlock','<p>')">P</button>
+                        <span class="toolbar-sep"></span>
+                        <button type="button" onclick="rwToggleHtml()" id="rw-html-toggle">HTML</button>
+                    </div>
+                    <div id="rw-result-content" class="gen-wysiwyg-editor prose" contenteditable="true"></div>
+                    <textarea id="rw-result-html" class="input hidden" style="height:300px;font-family:monospace;font-size:13px"></textarea>
+                </div>
+                <div class="btn-row">
+                    <button onclick="rwCopyAll()" class="btn-secondary">Kopiuj HTML</button>
+                    <button onclick="rwScoreContent()" class="btn-secondary">Sprawdz jakosc</button>
+                    <button onclick="rwReset()" class="btn-secondary">Nowy rewrite</button>
+                </div>
+                <div id="rw-score-result" class="hidden" style="margin-top:12px"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======= TAB: Keywords ======= -->
+    <div id="panel-keywords" class="tab-panel hidden">
+        <div class="page-header"><h2>Keyword Research</h2></div>
+        <div class="page-body" style="max-width:920px">
+            <div class="card">
+                <div class="card-title">Wyszukaj slowa kluczowe</div>
+                <div class="form-grid">
+                    <div>
+                        <label class="label">Slowo kluczowe</label>
+                        <input id="kw-keyword" type="text" class="input" placeholder="np. hosting wordpress">
+                    </div>
+                    <div>
+                        <label class="label">Jezyk</label>
+                        <select id="kw-language" class="input">
+                            <option value="pl">Polski</option>
+                            <option value="en">English</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button onclick="runKeywordResearch()" class="btn-primary">Szukaj</button>
+                </div>
+            </div>
+
+            <div id="kw-results" class="hidden">
+                <div class="card">
+                    <div class="card-title">Google Suggest</div>
+                    <div id="kw-suggestions" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Powiazane frazy</div>
+                    <div id="kw-related" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Google Trends (top zapytania)</div>
+                    <div id="kw-trends"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======= TAB: Analytics ======= -->
+    <div id="panel-analytics" class="tab-panel hidden">
+        <div class="page-header"><h2>Analytics</h2></div>
+        <div class="page-body" style="max-width:920px">
+            <div class="card">
+                <div class="form-grid">
+                    <div>
+                        <label class="label">Serwis WordPress</label>
+                        <select id="analytics-wp-site" class="input"><option value="">-- wybierz --</option></select>
+                    </div>
+                    <div style="display:flex;align-items:flex-end">
+                        <button onclick="loadAnalytics()" class="btn-primary">Zaladuj dane</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="analytics-data" class="hidden">
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
+                    <div class="card" style="text-align:center;margin-bottom:0">
+                        <div style="font-size:24px;font-weight:700" id="stat-published">0</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Opublikowane</div>
+                    </div>
+                    <div class="card" style="text-align:center;margin-bottom:0">
+                        <div style="font-size:24px;font-weight:700" id="stat-drafts">0</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Szkice</div>
+                    </div>
+                    <div class="card" style="text-align:center;margin-bottom:0">
+                        <div style="font-size:24px;font-weight:700" id="stat-scheduled">0</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Zaplanowane</div>
+                    </div>
+                    <div class="card" style="text-align:center;margin-bottom:0">
+                        <div style="font-size:24px;font-weight:700" id="stat-categories">0</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Kategorie</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Ostatnie posty</div>
+                    <div id="analytics-posts-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ======= TAB: Articles ======= -->
     <div id="panel-articles" class="tab-panel hidden">
         <div class="page-header"><h2>Historia artykulow</h2></div>
@@ -624,11 +830,12 @@
 
     <!-- ======= TAB: Styles ======= -->
     <div id="panel-styles" class="tab-panel hidden">
-        <div class="page-header"><h2>Szablony stylow</h2></div>
+        <div class="page-header"><h2>Szablony</h2></div>
         <div class="page-body">
+            <h3 style="font-size:14px;font-weight:600;margin-bottom:12px">Szablony stylow</h3>
             <div id="styles-list" style="margin-bottom:24px"></div>
             <div class="card">
-                <div class="card-title">Dodaj nowy szablon</div>
+                <div class="card-title">Dodaj nowy styl</div>
                 <div class="form-grid">
                     <div>
                         <label class="label">Nazwa stylu</label>
@@ -640,7 +847,34 @@
                     </div>
                 </div>
                 <div class="btn-row">
-                    <button onclick="createStyle()" class="btn-primary">Zapisz szablon</button>
+                    <button onclick="createStyle()" class="btn-primary">Zapisz styl</button>
+                </div>
+            </div>
+
+            <h3 style="font-size:14px;font-weight:600;margin:24px 0 12px">Szablony struktury artykulow</h3>
+            <div id="structure-templates-list" style="margin-bottom:16px"></div>
+            <div class="card">
+                <div class="card-title">Dodaj nowy szablon struktury</div>
+                <div class="form-grid">
+                    <div>
+                        <label class="label">Nazwa</label>
+                        <input id="new-struct-name" type="text" class="input" placeholder="np. Poradnik krok po kroku">
+                    </div>
+                    <div>
+                        <label class="label">Opis</label>
+                        <input id="new-struct-desc" type="text" class="input" placeholder="Artykul z numerowanymi krokami">
+                    </div>
+                    <div class="full">
+                        <label class="label">Sekcje (JSON) - tablica obiektow z heading i key_points</label>
+                        <textarea id="new-struct-sections" class="input" style="height:120px;font-family:monospace;font-size:12px" placeholder='[
+  {"heading": "Wstep", "key_points": ["Wprowadzenie do tematu"]},
+  {"heading": "Krok 1", "key_points": ["Opis pierwszego kroku"]},
+  {"heading": "Podsumowanie", "key_points": ["Kluczowe wnioski"]}
+]'></textarea>
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button onclick="createStructureTemplate()" class="btn-primary">Zapisz szablon</button>
                 </div>
             </div>
         </div>

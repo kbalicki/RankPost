@@ -1,4 +1,5 @@
 import json
+import httpx
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -121,6 +122,35 @@ class WpSiteCreate(BaseModel):
     url: str
     user: str
     app_password: str
+
+class KeywordRequest(BaseModel):
+    keyword: str
+    language: str = "pl"
+
+class ContentScoreRequest(BaseModel):
+    title: str
+    content: str
+    keywords: list[str] = []
+    language: str = "pl"
+    model: str = "claude"
+
+class RewriteRequest(BaseModel):
+    source_url: str = ""
+    source_text: str = ""
+    style_description: str = "Informacyjny"
+    additional_notes: str = ""
+    language: str = "pl"
+    model: str = "claude"
+    target_length: int = 1200
+
+class StructureTemplate(BaseModel):
+    name: str
+    description: str
+    structure: dict
+
+class ImageGalleryRequest(BaseModel):
+    title: str
+    count: int = 4
 
 
 # --- Settings API ---
@@ -280,6 +310,285 @@ async def suggest_cats(req: CategoriesRequest):
 async def featured_image(req: FeaturedImageRequest):
     url = await generate_featured_image_url(req.title)
     return {"image_url": url}
+
+
+@app.post("/api/image-gallery")
+async def image_gallery(req: ImageGalleryRequest):
+    from backend.ai.client import generate_image
+    urls = []
+    prompts = [
+        f"Professional blog header for '{req.title}'. Clean modern design, no text.",
+        f"Minimalist illustration for article '{req.title}'. Flat design, subtle colors.",
+        f"Abstract conceptual image for '{req.title}'. Professional, corporate style.",
+        f"Creative editorial photo concept for '{req.title}'. Warm lighting, magazine quality.",
+    ]
+    for i in range(min(req.count, 4)):
+        try:
+            url = await generate_image(prompts[i])
+            urls.append(url)
+        except Exception as e:
+            urls.append(None)
+    return {"images": [u for u in urls if u]}
+
+
+@app.post("/api/keyword-research")
+async def keyword_research(req: KeywordRequest):
+    import httpx as hx
+    lang_map = {"pl": "pl", "en": "en"}
+    hl = lang_map.get(req.language, "pl")
+
+    # Google Autocomplete suggestions
+    suggestions = []
+    try:
+        async with hx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                "https://suggestqueries.google.com/complete/search",
+                params={"client": "firefox", "q": req.keyword, "hl": hl},
+            )
+            data = resp.json()
+            suggestions = data[1] if len(data) > 1 else []
+    except Exception:
+        pass
+
+    # Related keywords via Google Suggest with prefixes
+    related = []
+    prefixes = ["jak ", "co ", "dlaczego ", "najlepszy ", ""] if hl == "pl" else ["how ", "what ", "why ", "best ", ""]
+    try:
+        async with hx.AsyncClient(timeout=15) as client:
+            for prefix in prefixes[:3]:
+                resp = await client.get(
+                    "https://suggestqueries.google.com/complete/search",
+                    params={"client": "firefox", "q": f"{prefix}{req.keyword}", "hl": hl},
+                )
+                data = resp.json()
+                if len(data) > 1:
+                    for s in data[1]:
+                        if s not in suggestions and s not in related:
+                            related.append(s)
+    except Exception:
+        pass
+
+    # Google Trends (if pytrends available)
+    trends_data = []
+    try:
+        from pytrends.request import TrendReq
+        import asyncio
+        def _get_trends():
+            pytrends = TrendReq(hl=hl, tz=60)
+            pytrends.build_payload([req.keyword], timeframe="today 3-m", geo=hl.upper())
+            related_queries = pytrends.related_queries()
+            result = []
+            if req.keyword in related_queries:
+                top = related_queries[req.keyword].get("top")
+                if top is not None:
+                    for _, row in top.head(10).iterrows():
+                        result.append({"query": row["query"], "value": int(row["value"])})
+            return result
+        trends_data = await asyncio.to_thread(_get_trends)
+    except Exception:
+        pass
+
+    return {
+        "suggestions": suggestions[:15],
+        "related": related[:15],
+        "trends": trends_data[:10],
+    }
+
+
+@app.post("/api/content-score")
+async def content_score(req: ContentScoreRequest):
+    import re
+    from backend.ai.client import generate_text
+
+    content_text = re.sub(r'<[^>]+>', ' ', req.content)
+    word_count = len(content_text.split())
+    h2_count = len(re.findall(r'<h2', req.content, re.I))
+    h3_count = len(re.findall(r'<h3', req.content, re.I))
+    link_count = len(re.findall(r'<a\s', req.content, re.I))
+    img_count = len(re.findall(r'<img', req.content, re.I))
+    paragraph_count = len(re.findall(r'<p', req.content, re.I))
+
+    # Basic metrics
+    metrics = {
+        "word_count": word_count,
+        "h2_count": h2_count,
+        "h3_count": h3_count,
+        "link_count": link_count,
+        "img_count": img_count,
+        "paragraph_count": paragraph_count,
+    }
+
+    # Keyword density
+    keyword_density = {}
+    for kw in req.keywords:
+        count = content_text.lower().count(kw.lower())
+        density = round((count / max(word_count, 1)) * 100, 2)
+        keyword_density[kw] = {"count": count, "density_pct": density}
+    metrics["keyword_density"] = keyword_density
+
+    # AI analysis
+    prompt = f"""Ocen artykul pod katem SEO i jakosci. Daj ocene 0-100 i krotkie wskazowki.
+
+Tytul: {req.title}
+Liczba slow: {word_count}
+Naglowki H2: {h2_count}, H3: {h3_count}
+Linki: {link_count}, Obrazki: {img_count}
+{f"Slowa kluczowe: {', '.join(req.keywords)}" if req.keywords else ""}
+
+Fragment artykulu: {content_text[:3000]}
+
+Odpowiedz TYLKO w formacie JSON:
+{{
+  "score": 75,
+  "readability": "dobra/srednia/slaba",
+  "seo_score": 70,
+  "tips": ["wskazowka 1", "wskazowka 2", "wskazowka 3"]
+}}"""
+
+    try:
+        result = await generate_text(prompt, model=req.model, max_tokens=512)
+        result = result.strip()
+        if result.startswith("```"):
+            result = result.split("\n", 1)[1]
+            if result.endswith("```"):
+                result = result[:-3]
+        ai_analysis = json.loads(result)
+    except Exception:
+        ai_analysis = {"score": 0, "readability": "brak danych", "seo_score": 0, "tips": ["Nie udalo sie przeanalizowac"]}
+
+    return {**metrics, **ai_analysis}
+
+
+@app.post("/api/rewrite")
+async def rewrite_article(req: RewriteRequest):
+    from backend.ai.client import generate_text
+
+    source_text = req.source_text
+    if req.source_url and not source_text:
+        sources = await step_scrape([req.source_url])
+        if sources and sources[0].get("text"):
+            source_text = sources[0]["text"]
+
+    if not source_text:
+        raise HTTPException(status_code=400, detail="Brak tekstu zrodlowego. Podaj URL lub wklej tekst.")
+
+    lang_label = "polskim" if req.language == "pl" else "angielskim"
+    prompt = f"""Przepisz ponizszy artykul w jezyku {lang_label}, tworzac calkowicie nowa, oryginalna wersje.
+
+Zasady:
+- Zachowaj kluczowe informacje i fakty
+- Zmien strukture, kolejnosc akapitow, naglowki
+- Uzyj innych sformlowan i synoniow
+- Styl: {req.style_description}
+- Dlugosc: ok. {req.target_length} slow
+- Format: HTML (h2, h3, p, ul, ol, strong, em). Bez h1.
+{f"Dodatkowe uwagi: {req.additional_notes}" if req.additional_notes else ""}
+
+ORYGINALNY TEKST:
+{source_text[:8000]}
+
+Odpowiedz TYLKO nowym HTML artykulu, bez komentarzy."""
+
+    content = await generate_text(prompt, model=req.model, max_tokens=max(4096, req.target_length * 3))
+
+    # Generate title
+    title_prompt = f"Wymysl krotki, chwytliwy tytul artykulu w jezyku {lang_label} na podstawie tresci:\n{content[:1000]}\n\nOdpowiedz TYLKO tytulem, bez cudzyslowow."
+    title = await generate_text(title_prompt, model=req.model, max_tokens=100)
+
+    return {"title": title.strip().strip('"'), "content": content}
+
+
+# --- Structure Templates CRUD ---
+
+@app.get("/api/structure-templates")
+async def list_structure_templates():
+    db = await get_db()
+    try:
+        cursor = await db.execute("SELECT * FROM structure_templates ORDER BY name")
+        rows = await cursor.fetchall()
+        return {"templates": [dict(r) for r in rows]}
+    except Exception:
+        return {"templates": []}
+    finally:
+        await db.close()
+
+
+@app.post("/api/structure-templates")
+async def create_structure_template(tpl: StructureTemplate):
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            "INSERT INTO structure_templates (name, description, structure) VALUES (?, ?, ?)",
+            (tpl.name, tpl.description, json.dumps(tpl.structure)),
+        )
+        await db.commit()
+        return {"id": cursor.lastrowid, "name": tpl.name}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await db.close()
+
+
+@app.delete("/api/structure-templates/{tpl_id}")
+async def delete_structure_template(tpl_id: int):
+    db = await get_db()
+    try:
+        await db.execute("DELETE FROM structure_templates WHERE id = ?", (tpl_id,))
+        await db.commit()
+        return {"ok": True}
+    finally:
+        await db.close()
+
+
+# --- WP Analytics ---
+
+@app.get("/api/wp-sites/{site_name}/analytics")
+async def wp_analytics(site_name: str):
+    from backend.wordpress.client import _get_site_config, _auth_header
+    cfg = await _get_site_config(site_name)
+    headers = {"Authorization": _auth_header(cfg["user"], cfg["app_password"])}
+    base = cfg["url"].rstrip("/")
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        # Get recent posts with views-like stats
+        resp = await client.get(
+            f"{base}/wp-json/wp/v2/posts",
+            headers=headers,
+            params={"per_page": 20, "orderby": "date", "order": "desc", "_fields": "id,title,date,status,link,comment_count"},
+        )
+        resp.raise_for_status()
+        posts = resp.json()
+
+        # Get counts
+        posts_resp = await client.get(f"{base}/wp-json/wp/v2/posts", headers=headers, params={"per_page": 1, "status": "publish"})
+        total_published = int(posts_resp.headers.get("X-WP-Total", 0))
+
+        drafts_resp = await client.get(f"{base}/wp-json/wp/v2/posts", headers=headers, params={"per_page": 1, "status": "draft"})
+        total_drafts = int(drafts_resp.headers.get("X-WP-Total", 0))
+
+        scheduled_resp = await client.get(f"{base}/wp-json/wp/v2/posts", headers=headers, params={"per_page": 1, "status": "future"})
+        total_scheduled = int(scheduled_resp.headers.get("X-WP-Total", 0))
+
+        cats_resp = await client.get(f"{base}/wp-json/wp/v2/categories", headers=headers, params={"per_page": 1})
+        total_cats = int(cats_resp.headers.get("X-WP-Total", 0))
+
+    return {
+        "total_published": total_published,
+        "total_drafts": total_drafts,
+        "total_scheduled": total_scheduled,
+        "total_categories": total_cats,
+        "recent_posts": [
+            {
+                "id": p["id"],
+                "title": p["title"]["rendered"],
+                "date": p["date"],
+                "status": p["status"],
+                "link": p.get("link", ""),
+                "comments": p.get("comment_count", 0),
+            }
+            for p in posts
+        ],
+    }
 
 
 @app.post("/api/publish")

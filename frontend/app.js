@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadWpSites();
     loadStyles();
     loadSettings();
+    loadStructureTemplates();
     initGenerator();
 
     document.getElementById('target-length').addEventListener('change', (e) => {
@@ -56,9 +57,12 @@ function showTab(name) {
     document.getElementById(`panel-${name}`).classList.remove('hidden');
     document.getElementById(`tab-${name}`).classList.add('active');
     if (name === 'articles') loadArticles();
-    if (name === 'styles') loadStyles();
+    if (name === 'styles') { loadStyles(); loadStructureTemplates(); }
     if (name === 'settings') loadSettings();
     if (name === 'bulk') initBulk();
+    if (name === 'rewrite') initRewrite();
+    if (name === 'keywords') {}
+    if (name === 'analytics') initAnalytics();
 }
 
 // --- Steps ---
@@ -371,12 +375,25 @@ async function generateOutline() {
     const form = getFormData();
     if (!form.topic) return alert('Podaj temat artykulu');
 
+    // Apply structure template if selected
+    applyStructureTemplate();
+
     showLoading('Generuje outline artykulu...');
     try {
         const data = await apiPost('/api/outline', { ...form, file_texts: getFileTexts() });
         state.outlineData = data.outline;
         document.getElementById('outline-title').value = data.outline.title || form.topic;
-        renderOutlineSections(data.outline.sections || []);
+
+        // Use pending structure template sections if available, otherwise AI-generated
+        if (state._pendingStructure && state._pendingStructure.length) {
+            renderOutlineSections(state._pendingStructure.map(s => ({
+                heading: s.heading || s,
+                key_points: s.key_points || []
+            })));
+            state._pendingStructure = null;
+        } else {
+            renderOutlineSections(data.outline.sections || []);
+        }
         goToStep(2);
     } catch (e) {
         alert('Blad: ' + e.message);
@@ -1172,6 +1189,357 @@ function renderGenStyleSelect() {
     if (!sel) return;
     sel.innerHTML = '<option value="">-- wybierz szablon --</option>' +
         state.styles.map(s => `<option value="${s.id}" data-desc="${encodeURIComponent(s.description)}">${escapeHtml(s.name)}</option>`).join('');
+}
+
+// --- Keyword Research ---
+async function runKeywordResearch() {
+    const keyword = document.getElementById('kw-keyword').value.trim();
+    if (!keyword) return alert('Wpisz slowo kluczowe');
+
+    showLoading('Szukam slow kluczowych...');
+    try {
+        const data = await apiPost('/api/keyword-research', {
+            keyword,
+            language: document.getElementById('kw-language').value,
+        });
+
+        document.getElementById('kw-results').classList.remove('hidden');
+
+        document.getElementById('kw-suggestions').innerHTML = (data.suggestions || []).map(s =>
+            `<span class="cat-chip" onclick="kwCopyToClipboard('${escapeHtml(s)}')" style="cursor:pointer">${escapeHtml(s)}</span>`
+        ).join('') || '<span style="color:var(--text-muted);font-size:13px">Brak wynikow</span>';
+
+        document.getElementById('kw-related').innerHTML = (data.related || []).map(s =>
+            `<span class="cat-chip" onclick="kwCopyToClipboard('${escapeHtml(s)}')" style="cursor:pointer">${escapeHtml(s)}</span>`
+        ).join('') || '<span style="color:var(--text-muted);font-size:13px">Brak wynikow</span>';
+
+        if (data.trends && data.trends.length) {
+            document.getElementById('kw-trends').innerHTML = data.trends.map(t => `
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+                    <div style="flex:1;font-size:13px">${escapeHtml(t.query)}</div>
+                    <div style="width:120px;background:var(--bg-input);border-radius:3px;height:6px;overflow:hidden">
+                        <div style="height:100%;background:var(--green);width:${t.value}%"></div>
+                    </div>
+                    <div style="font-size:12px;color:var(--text-muted);width:30px;text-align:right">${t.value}</div>
+                </div>
+            `).join('');
+        } else {
+            document.getElementById('kw-trends').innerHTML = '<span style="color:var(--text-muted);font-size:13px">Brak danych trendow (wymaga pytrends)</span>';
+        }
+    } catch (e) {
+        alert('Blad: ' + e.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+function kwCopyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {}).catch(() => {});
+}
+
+// --- Content Score ---
+async function wizContentScore() {
+    const content = getWizArticleHtml();
+    const title = state.outlineData?.title || document.getElementById('topic').value;
+    if (!content) return alert('Brak tresci artykulu');
+
+    showLoading('Analizuje jakosc artykulu...');
+    try {
+        const data = await apiPost('/api/content-score', {
+            title,
+            content,
+            keywords: [],
+            language: document.getElementById('language').value,
+            model: document.getElementById('ai-model').value,
+        });
+        renderScoreResult('wiz-score-result', data);
+    } catch (e) {
+        alert('Blad: ' + e.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+function renderScoreResult(containerId, data) {
+    const el = document.getElementById(containerId);
+    el.classList.remove('hidden');
+    const scoreColor = data.score >= 70 ? 'var(--green)' : data.score >= 40 ? '#e67e22' : 'var(--red)';
+    el.innerHTML = `
+        <div class="card" style="margin-bottom:0">
+            <div class="card-title">Analiza jakosci</div>
+            <div style="display:flex;gap:24px;margin-bottom:12px;flex-wrap:wrap">
+                <div style="text-align:center">
+                    <div style="font-size:32px;font-weight:700;color:${scoreColor}">${data.score || 0}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">Ogolna</div>
+                </div>
+                <div style="text-align:center">
+                    <div style="font-size:32px;font-weight:700;color:${scoreColor}">${data.seo_score || 0}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">SEO</div>
+                </div>
+                <div style="font-size:13px;color:var(--text-secondary);display:flex;flex-direction:column;gap:2px">
+                    <span>Slow: ${data.word_count} | H2: ${data.h2_count} | H3: ${data.h3_count}</span>
+                    <span>Linki: ${data.link_count} | Obrazki: ${data.img_count} | Akapity: ${data.paragraph_count}</span>
+                    <span>Czytelnosc: ${data.readability || '-'}</span>
+                </div>
+            </div>
+            ${(data.tips || []).length ? '<div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px">WSKAZOWKI</div>' +
+                data.tips.map(t => `<p style="font-size:13px;color:var(--text-secondary);margin-bottom:4px">• ${escapeHtml(t)}</p>`).join('') : ''}
+        </div>
+    `;
+}
+
+// --- Rewrite ---
+async function runRewrite() {
+    const url = document.getElementById('rw-source-url').value.trim();
+    const text = document.getElementById('rw-source-text').value.trim();
+    if (!url && !text) return alert('Podaj URL lub wklej tekst');
+
+    const styleSel = document.getElementById('rw-style-select');
+    const styleOption = styleSel.selectedOptions[0];
+    const styleDesc = styleOption && styleOption.dataset.desc ? decodeURIComponent(styleOption.dataset.desc) : '';
+    const customStyle = document.getElementById('rw-style-custom').value.trim();
+
+    showLoading('Przepisuje artykul... To moze potrwac chwile.');
+    try {
+        const data = await apiPost('/api/rewrite', {
+            source_url: url,
+            source_text: text,
+            style_description: customStyle || styleDesc || 'Informacyjny',
+            additional_notes: document.getElementById('rw-additional-notes').value.trim(),
+            language: document.getElementById('rw-language').value,
+            model: document.getElementById('rw-ai-model').value,
+            target_length: parseInt(document.getElementById('rw-target-length').value) || 1200,
+        });
+
+        document.getElementById('rw-result-title').value = data.title;
+        document.getElementById('rw-result-content').innerHTML = data.content;
+        document.getElementById('rw-result-html').value = data.content;
+        document.getElementById('rewrite-form-section').classList.add('hidden');
+        document.getElementById('rewrite-results').classList.remove('hidden');
+    } catch (e) {
+        alert('Blad: ' + e.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+function rwExecCmd(cmd, value) {
+    document.execCommand(cmd, false, value || null);
+    document.getElementById('rw-result-content').focus();
+}
+
+function rwToggleHtml() {
+    const editor = document.getElementById('rw-result-content');
+    const textarea = document.getElementById('rw-result-html');
+    const btn = document.getElementById('rw-html-toggle');
+    if (textarea.classList.contains('hidden')) {
+        textarea.value = editor.innerHTML;
+        editor.classList.add('hidden');
+        textarea.classList.remove('hidden');
+        btn.style.background = 'var(--accent)';
+        btn.style.color = '#fff';
+    } else {
+        editor.innerHTML = textarea.value;
+        textarea.classList.add('hidden');
+        editor.classList.remove('hidden');
+        btn.style.background = '';
+        btn.style.color = '';
+    }
+}
+
+function rwCopyAll() {
+    const editor = document.getElementById('rw-result-content');
+    const html = editor.classList.contains('hidden')
+        ? document.getElementById('rw-result-html').value
+        : editor.innerHTML;
+    navigator.clipboard.writeText(html).then(() => alert('Skopiowano HTML!')).catch(() => {});
+}
+
+async function rwScoreContent() {
+    const editor = document.getElementById('rw-result-content');
+    const content = editor.classList.contains('hidden')
+        ? document.getElementById('rw-result-html').value
+        : editor.innerHTML;
+    const title = document.getElementById('rw-result-title').value;
+
+    showLoading('Analizuje jakosc...');
+    try {
+        const data = await apiPost('/api/content-score', {
+            title, content, keywords: [],
+            language: document.getElementById('rw-language').value,
+            model: document.getElementById('rw-ai-model').value,
+        });
+        renderScoreResult('rw-score-result', data);
+    } catch (e) {
+        alert('Blad: ' + e.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+function rwReset() {
+    document.getElementById('rewrite-results').classList.add('hidden');
+    document.getElementById('rewrite-form-section').classList.remove('hidden');
+    document.getElementById('rw-score-result').classList.add('hidden');
+}
+
+function initRewrite() {
+    const sel = document.getElementById('rw-style-select');
+    if (sel) {
+        sel.innerHTML = '<option value="">-- wybierz --</option>' +
+            state.styles.map(s => `<option value="${s.id}" data-desc="${encodeURIComponent(s.description)}">${escapeHtml(s.name)}</option>`).join('');
+    }
+}
+
+// --- Structure Templates ---
+let structureTemplates = [];
+
+async function loadStructureTemplates() {
+    try {
+        const data = await apiGet('/api/structure-templates');
+        structureTemplates = data.templates || [];
+        renderStructureTemplatesList();
+        renderStructureTemplateSelect();
+    } catch (e) {
+        console.error('Failed to load structure templates', e);
+    }
+}
+
+function renderStructureTemplatesList() {
+    const container = document.getElementById('structure-templates-list');
+    if (!container) return;
+    if (!structureTemplates.length) {
+        container.innerHTML = '<p style="color:var(--text-muted);font-size:14px">Brak szablonow struktury</p>';
+        return;
+    }
+    container.innerHTML = structureTemplates.map(t => `
+        <div class="list-item">
+            <div class="list-item-info">
+                <p>${escapeHtml(t.name)}</p>
+                <p>${escapeHtml(t.description)}</p>
+            </div>
+            <div class="list-item-actions">
+                <button onclick="deleteStructureTemplate(${t.id})" class="btn-danger">Usun</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderStructureTemplateSelect() {
+    const sel = document.getElementById('structure-template-select');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">-- brak, wygeneruj automatycznie --</option>' +
+        structureTemplates.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+}
+
+function applyStructureTemplate() {
+    const sel = document.getElementById('structure-template-select');
+    const tplId = parseInt(sel.value);
+    if (!tplId) return;
+
+    const tpl = structureTemplates.find(t => t.id === tplId);
+    if (!tpl) return;
+
+    const structure = typeof tpl.structure === 'string' ? JSON.parse(tpl.structure) : tpl.structure;
+    if (structure.sections) {
+        // Pre-fill outline when user reaches step 2
+        state._pendingStructure = structure.sections;
+    }
+}
+
+async function createStructureTemplate() {
+    const name = document.getElementById('new-struct-name').value.trim();
+    const desc = document.getElementById('new-struct-desc').value.trim();
+    const sectionsJson = document.getElementById('new-struct-sections').value.trim();
+    if (!name || !sectionsJson) return alert('Podaj nazwe i sekcje');
+
+    try {
+        const sections = JSON.parse(sectionsJson);
+        await apiPost('/api/structure-templates', { name, description: desc, structure: { sections } });
+        document.getElementById('new-struct-name').value = '';
+        document.getElementById('new-struct-desc').value = '';
+        document.getElementById('new-struct-sections').value = '';
+        loadStructureTemplates();
+    } catch (e) {
+        alert('Blad: ' + e.message);
+    }
+}
+
+async function deleteStructureTemplate(id) {
+    if (!confirm('Na pewno usunac?')) return;
+    await apiDelete(`/api/structure-templates/${id}`);
+    loadStructureTemplates();
+}
+
+// --- Image Gallery ---
+async function generateImageGallery() {
+    const title = state.outlineData?.title || document.getElementById('topic').value;
+    if (!title) return alert('Brak tytulu');
+
+    showLoading('Generuje obrazki (to moze potrwac)...');
+    try {
+        const data = await apiPost('/api/image-gallery', { title, count: 4 });
+        const gallery = document.getElementById('image-gallery');
+        const grid = document.getElementById('image-gallery-grid');
+        gallery.classList.remove('hidden');
+        grid.innerHTML = data.images.map(url =>
+            `<img src="${url}" style="width:100%;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:border 0.1s"
+                onclick="selectGalleryImage('${url}', this)">`
+        ).join('');
+    } catch (e) {
+        alert('Blad: ' + e.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+function selectGalleryImage(url, el) {
+    state.featuredImageUrl = url;
+    document.getElementById('featured-image-preview').innerHTML =
+        `<img src="${url}" style="max-height:200px;border-radius:8px">`;
+    // Highlight selected
+    document.querySelectorAll('#image-gallery-grid img').forEach(img => img.style.borderColor = 'transparent');
+    el.style.borderColor = 'var(--green)';
+}
+
+// --- Analytics ---
+async function loadAnalytics() {
+    const site = document.getElementById('analytics-wp-site').value;
+    if (!site) return alert('Wybierz serwis WordPress');
+
+    showLoading('Laduje statystyki...');
+    try {
+        const data = await apiGet(`/api/wp-sites/${site}/analytics`);
+        document.getElementById('analytics-data').classList.remove('hidden');
+        document.getElementById('stat-published').textContent = data.total_published;
+        document.getElementById('stat-drafts').textContent = data.total_drafts;
+        document.getElementById('stat-scheduled').textContent = data.total_scheduled;
+        document.getElementById('stat-categories').textContent = data.total_categories;
+
+        document.getElementById('analytics-posts-list').innerHTML = data.recent_posts.map(p => `
+            <div class="list-item" style="margin-bottom:6px">
+                <div class="list-item-info">
+                    <p>${escapeHtml(p.title)}</p>
+                    <p>${p.date} | ${p.status} | ${p.comments} komentarzy</p>
+                </div>
+                <div class="list-item-actions">
+                    ${p.link ? `<a href="${p.link}" target="_blank" class="btn-secondary" style="font-size:11px;padding:4px 8px;text-decoration:none">Otworz</a>` : ''}
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        alert('Blad: ' + e.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+function initAnalytics() {
+    apiGet('/api/wp-sites').then(data => {
+        const sel = document.getElementById('analytics-wp-site');
+        sel.innerHTML = '<option value="">-- wybierz --</option>' +
+            data.sites.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('');
+    }).catch(() => {});
 }
 
 // --- Bulk Generation ---

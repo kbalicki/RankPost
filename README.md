@@ -18,6 +18,12 @@ AI-powered article generator with WordPress publishing. Generate SEO-optimized b
 - **Article history**: Browse, preview details, resume editing, delete
 - **Dark/light mode**: Toggle with localStorage persistence
 - **Multiple WP sites**: Manage several WordPress installations
+- **Keyword research**: Google Suggest + Google Trends (pytrends) - free, no API key
+- **Content score**: Word count, headings, links, images + AI quality analysis
+- **Rewrite mode**: Scrape URL or paste text, AI rewrites with new structure
+- **Structure templates**: Save reusable article structures (sections/headings)
+- **Analytics dashboard**: WP site stats (published/drafts/scheduled/categories)
+- **Image gallery**: Generate multiple DALL-E images, pick the best one
 
 ## Tech Stack
 
@@ -25,6 +31,7 @@ AI-powered article generator with WordPress publishing. Generate SEO-optimized b
 - **Frontend**: Vanilla HTML/JS + CSS (no framework)
 - **AI**: `anthropic` + `openai` SDKs + Claude CLI
 - **Scraper**: httpx + BeautifulSoup4 + readability-lxml
+- **Keywords**: Google Suggest API + pytrends (Google Trends)
 - **WordPress**: REST API + Application Passwords (Basic Auth)
 
 ## Setup
@@ -70,6 +77,12 @@ Claude CLI model works without API keys if `claude` is installed locally.
 | CRUD | `/api/wp-sites` | WordPress sites |
 | CRUD | `/api/styles` | Style templates |
 | CRUD | `/api/articles` | Article history |
+| POST | `/api/keyword-research` | Google Suggest + Trends |
+| POST | `/api/content-score` | Content quality analysis |
+| POST | `/api/rewrite` | Rewrite/paraphrase content |
+| CRUD | `/api/structure-templates` | Article structure templates |
+| POST | `/api/image-gallery` | Generate multiple images |
+| GET | `/api/wp-sites/{name}/analytics` | WP site analytics |
 
 ## Project Structure
 
