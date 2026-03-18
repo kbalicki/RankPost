@@ -22,13 +22,16 @@ async def get_categories(site_name: str) -> list[dict]:
     all_categories = []
     page = 1
     async with httpx.AsyncClient(timeout=30) as client:
-        while True:
+        while page <= 50:  # safety limit
             resp = await client.get(url, headers=headers, params={"per_page": 100, "page": page})
             resp.raise_for_status()
             data = resp.json()
             if not data:
                 break
             all_categories.extend([{"id": c["id"], "name": c["name"], "slug": c["slug"]} for c in data])
+            total_pages = int(resp.headers.get("X-WP-TotalPages", 1))
+            if page >= total_pages:
+                break
             page += 1
     return all_categories
 

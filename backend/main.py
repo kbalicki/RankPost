@@ -1,4 +1,6 @@
 import json
+import re
+import asyncio
 import httpx
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, UploadFile, File
@@ -333,14 +335,13 @@ async def image_gallery(req: ImageGalleryRequest):
 
 @app.post("/api/keyword-research")
 async def keyword_research(req: KeywordRequest):
-    import httpx as hx
-    lang_map = {"pl": "pl", "en": "en"}
-    hl = lang_map.get(req.language, "pl")
+    hl = "pl" if req.language == "pl" else "en"
+    geo = "PL" if req.language == "pl" else "US"
 
     # Google Autocomplete suggestions
     suggestions = []
     try:
-        async with hx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(
                 "https://suggestqueries.google.com/complete/search",
                 params={"client": "firefox", "q": req.keyword, "hl": hl},
@@ -354,7 +355,7 @@ async def keyword_research(req: KeywordRequest):
     related = []
     prefixes = ["jak ", "co ", "dlaczego ", "najlepszy ", ""] if hl == "pl" else ["how ", "what ", "why ", "best ", ""]
     try:
-        async with hx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=15) as client:
             for prefix in prefixes[:3]:
                 resp = await client.get(
                     "https://suggestqueries.google.com/complete/search",
@@ -372,10 +373,9 @@ async def keyword_research(req: KeywordRequest):
     trends_data = []
     try:
         from pytrends.request import TrendReq
-        import asyncio
         def _get_trends():
             pytrends = TrendReq(hl=hl, tz=60)
-            pytrends.build_payload([req.keyword], timeframe="today 3-m", geo=hl.upper())
+            pytrends.build_payload([req.keyword], timeframe="today 3-m", geo=geo)
             related_queries = pytrends.related_queries()
             result = []
             if req.keyword in related_queries:
@@ -397,7 +397,6 @@ async def keyword_research(req: KeywordRequest):
 
 @app.post("/api/content-score")
 async def content_score(req: ContentScoreRequest):
-    import re
     from backend.ai.client import generate_text
 
     content_text = re.sub(r'<[^>]+>', ' ', req.content)
@@ -446,13 +445,9 @@ Odpowiedz TYLKO w formacie JSON:
 }}"""
 
     try:
+        from backend.content.generator import _parse_json_response
         result = await generate_text(prompt, model=req.model, max_tokens=512)
-        result = result.strip()
-        if result.startswith("```"):
-            result = result.split("\n", 1)[1]
-            if result.endswith("```"):
-                result = result[:-3]
-        ai_analysis = json.loads(result)
+        ai_analysis = _parse_json_response(result, fallback={"score": 0, "readability": "brak danych", "seo_score": 0, "tips": ["Nie udalo sie przeanalizowac"]})
     except Exception:
         ai_analysis = {"score": 0, "readability": "brak danych", "seo_score": 0, "tips": ["Nie udalo sie przeanalizowac"]}
 
@@ -658,7 +653,6 @@ Odpowiedz TYLKO zmodyfikowanym HTML artykulu, bez komentarzy."""
 
     updated = await generate_text(prompt, model=req.model, max_tokens=max(4096, len(req.content) * 2))
     # Count added links roughly
-    import re
     original_links = len(re.findall(r'<a\s', req.content))
     new_links = len(re.findall(r'<a\s', updated))
     return {"updated_content": updated, "links_added": max(0, new_links - original_links)}

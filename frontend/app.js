@@ -61,7 +61,6 @@ function showTab(name) {
     if (name === 'settings') loadSettings();
     if (name === 'bulk') initBulk();
     if (name === 'rewrite') initRewrite();
-    if (name === 'keywords') {}
     if (name === 'analytics') initAnalytics();
 }
 
@@ -1206,12 +1205,18 @@ async function runKeywordResearch() {
         document.getElementById('kw-results').classList.remove('hidden');
 
         document.getElementById('kw-suggestions').innerHTML = (data.suggestions || []).map(s =>
-            `<span class="cat-chip" onclick="kwCopyToClipboard('${escapeHtml(s)}')" style="cursor:pointer">${escapeHtml(s)}</span>`
+            `<span class="cat-chip" data-kw="${escapeHtml(s)}" style="cursor:pointer">${escapeHtml(s)}</span>`
         ).join('') || '<span style="color:var(--text-muted);font-size:13px">Brak wynikow</span>';
+        document.querySelectorAll('#kw-suggestions .cat-chip[data-kw]').forEach(el =>
+            el.addEventListener('click', () => kwCopyToClipboard(el.dataset.kw))
+        );
 
         document.getElementById('kw-related').innerHTML = (data.related || []).map(s =>
-            `<span class="cat-chip" onclick="kwCopyToClipboard('${escapeHtml(s)}')" style="cursor:pointer">${escapeHtml(s)}</span>`
+            `<span class="cat-chip" data-kw="${escapeHtml(s)}" style="cursor:pointer">${escapeHtml(s)}</span>`
         ).join('') || '<span style="color:var(--text-muted);font-size:13px">Brak wynikow</span>';
+        document.querySelectorAll('#kw-related .cat-chip[data-kw]').forEach(el =>
+            el.addEventListener('click', () => kwCopyToClipboard(el.dataset.kw))
+        );
 
         if (data.trends && data.trends.length) {
             document.getElementById('kw-trends').innerHTML = data.trends.map(t => `
@@ -1467,8 +1472,12 @@ async function createStructureTemplate() {
 
 async function deleteStructureTemplate(id) {
     if (!confirm('Na pewno usunac?')) return;
-    await apiDelete(`/api/structure-templates/${id}`);
-    loadStructureTemplates();
+    try {
+        await apiDelete(`/api/structure-templates/${id}`);
+        loadStructureTemplates();
+    } catch (e) {
+        alert('Blad: ' + e.message);
+    }
 }
 
 // --- Image Gallery ---
@@ -1483,9 +1492,11 @@ async function generateImageGallery() {
         const grid = document.getElementById('image-gallery-grid');
         gallery.classList.remove('hidden');
         grid.innerHTML = data.images.map(url =>
-            `<img src="${url}" style="width:100%;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:border 0.1s"
-                onclick="selectGalleryImage('${url}', this)">`
+            `<img src="${url}" data-gallery-url="${escapeHtml(url)}" style="width:100%;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:border 0.1s">`
         ).join('');
+        grid.querySelectorAll('img[data-gallery-url]').forEach(img =>
+            img.addEventListener('click', () => selectGalleryImage(img.dataset.galleryUrl, img))
+        );
     } catch (e) {
         alert('Blad: ' + e.message);
     } finally {
@@ -1509,7 +1520,7 @@ async function loadAnalytics() {
 
     showLoading('Laduje statystyki...');
     try {
-        const data = await apiGet(`/api/wp-sites/${site}/analytics`);
+        const data = await apiGet(`/api/wp-sites/${encodeURIComponent(site)}/analytics`);
         document.getElementById('analytics-data').classList.remove('hidden');
         document.getElementById('stat-published').textContent = data.total_published;
         document.getElementById('stat-drafts').textContent = data.total_drafts;

@@ -18,7 +18,7 @@ async def generate_text(prompt: str, system: str = "", model: str = "claude-cli"
         kwargs = {"model": model_id, "max_tokens": max_tokens, "messages": messages}
         if system:
             kwargs["system"] = system
-        response = client.messages.create(**kwargs)
+        response = await asyncio.to_thread(client.messages.create, **kwargs)
         return response.content[0].text
 
     elif model.startswith("gpt"):
@@ -31,7 +31,9 @@ async def generate_text(prompt: str, system: str = "", model: str = "claude-cli"
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
-        response = client.chat.completions.create(model=model_id, messages=messages, max_tokens=max_tokens)
+        response = await asyncio.to_thread(
+            client.chat.completions.create, model=model_id, messages=messages, max_tokens=max_tokens
+        )
         return response.choices[0].message.content
 
     raise ValueError(f"Nieznany model: {model}")
@@ -61,7 +63,8 @@ async def generate_image(prompt: str) -> str:
     if not api_key:
         raise ValueError("Klucz OpenAI API nie jest ustawiony. Przejdz do Ustawien.")
     client = openai.OpenAI(api_key=api_key)
-    response = client.images.generate(
+    response = await asyncio.to_thread(
+        client.images.generate,
         model="dall-e-3",
         prompt=prompt,
         size="1792x1024",

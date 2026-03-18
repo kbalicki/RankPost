@@ -2,6 +2,21 @@ import json
 from backend.ai.client import generate_text, generate_image
 
 
+def _parse_json_response(text: str, fallback=None):
+    """Strip markdown fences and parse JSON. Return fallback on failure."""
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1]
+        if text.endswith("```"):
+            text = text[:-3]
+    try:
+        return json.loads(text.strip())
+    except (json.JSONDecodeError, ValueError):
+        if fallback is not None:
+            return fallback
+        raise ValueError(f"AI zwrocilo nieprawidlowy JSON: {text[:200]}")
+
+
 SYSTEM_PROMPT = """Jestes ekspertem SEO i copywriterem. Tworzysz artykuly zoptymalizowane pod wyszukiwarki.
 Zasady:
 - Pisz w formacie HTML (uzyj h2, h3, p, ul, ol, strong, em)
@@ -51,12 +66,7 @@ Odpowiedz TYLKO w formacie JSON:
 }}"""
 
     result = await generate_text(prompt, system=SYSTEM_PROMPT, model=model, max_tokens=2048)
-    result = result.strip()
-    if result.startswith("```"):
-        result = result.split("\n", 1)[1]
-        if result.endswith("```"):
-            result = result[:-3]
-    return json.loads(result)
+    return _parse_json_response(result, fallback={"title": topic, "sections": [{"heading": "Sekcja 1", "key_points": []}]})
 
 
 async def generate_article_content(
@@ -117,12 +127,7 @@ Odpowiedz TYLKO w formacie JSON:
 }}"""
 
     result = await generate_text(prompt, model=model, max_tokens=512)
-    result = result.strip()
-    if result.startswith("```"):
-        result = result.split("\n", 1)[1]
-        if result.endswith("```"):
-            result = result[:-3]
-    return json.loads(result)
+    return _parse_json_response(result, fallback={"meta_title": title[:60], "meta_description": "", "slug": ""})
 
 
 async def generate_tags(title: str, content_preview: str, tags_min: int, tags_max: int, language: str, model: str) -> list[str]:
@@ -136,12 +141,7 @@ Wygeneruj od {tags_min} do {tags_max} tagow.
 Odpowiedz TYLKO jako JSON array stringow, np: ["tag1", "tag2", "tag3"]"""
 
     result = await generate_text(prompt, model=model, max_tokens=512)
-    result = result.strip()
-    if result.startswith("```"):
-        result = result.split("\n", 1)[1]
-        if result.endswith("```"):
-            result = result[:-3]
-    return json.loads(result)
+    return _parse_json_response(result, fallback=[])
 
 
 async def suggest_categories(title: str, content_preview: str, available_categories: list[dict], model: str) -> list[int]:
@@ -157,12 +157,7 @@ Wybierz 1-3 najbardziej pasujace kategorie.
 Odpowiedz TYLKO jako JSON array z ID kategorii, np: [1, 5]"""
 
     result = await generate_text(prompt, model=model, max_tokens=256)
-    result = result.strip()
-    if result.startswith("```"):
-        result = result.split("\n", 1)[1]
-        if result.endswith("```"):
-            result = result[:-3]
-    return json.loads(result)
+    return _parse_json_response(result, fallback=[])
 
 
 async def generate_featured_image_url(title: str, model: str = "dall-e-3") -> str:
