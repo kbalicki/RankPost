@@ -534,16 +534,24 @@ function updateSerpPreview() {
 // --- Internal Linking ---
 async function addInternalLinks() {
     const form = getFormData();
-    if (!form.wp_site) return alert('Wybierz serwis WordPress w formularzu (step 1), zeby pobrac posty');
-
     const content = getWizArticleHtml();
     if (!content) return alert('Brak tresci artykulu');
+
+    const customLinksText = document.getElementById('wiz-custom-links').value.trim();
+    const customLinks = customLinksText ? customLinksText.split('\n').map(l => l.trim()).filter(l => l) : [];
+    const linksPerArticle = parseInt(document.getElementById('wiz-links-count').value) || 3;
+
+    if (!customLinks.length && !form.wp_site) {
+        return alert('Podaj linki w polu tekstowym lub wybierz serwis WordPress');
+    }
 
     showLoading('Dodaje linki wewnetrzne...');
     try {
         const result = await apiPost('/api/internal-links', {
             content,
             wp_site: form.wp_site,
+            custom_links: customLinks,
+            links_per_article: linksPerArticle,
             model: form.model,
         });
         document.getElementById('article-preview').innerHTML = result.updated_content;
@@ -1555,9 +1563,9 @@ function initAnalytics() {
 
 // --- Bulk Generation ---
 let bulkCancelled = false;
+let bulkUploadedFiles = [];
 
 function initBulk() {
-    // Load styles and WP sites for bulk panel
     const sel = document.getElementById('bulk-style-select');
     if (sel) {
         sel.innerHTML = '<option value="">-- wybierz szablon --</option>' +
@@ -1570,6 +1578,75 @@ function initBulk() {
                 data.sites.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)} (${escapeHtml(s.url)})</option>`).join('');
         }
     }).catch(() => {});
+
+    // File upload
+    const fileInput = document.getElementById('bulk-source-files');
+    const dropZone = document.getElementById('bulk-file-drop-zone');
+    if (fileInput) {
+        fileInput.addEventListener('change', () => bulkHandleFileUpload(fileInput.files));
+    }
+    if (dropZone) {
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            bulkHandleFileUpload(e.dataTransfer.files);
+        });
+    }
+}
+
+function bulkToggleSchedule() {
+    const status = document.getElementById('bulk-publish-status').value;
+    document.getElementById('bulk-schedule-range').classList.toggle('hidden', status !== 'future');
+}
+
+function bulkRandomDate(from, to) {
+    const start = new Date(from).getTime();
+    const end = new Date(to).getTime();
+    const rand = new Date(start + Math.random() * (end - start));
+    const h = Math.floor(Math.random() * 14) + 7; // 07:00-21:00
+    const m = Math.floor(Math.random() * 60);
+    rand.setHours(h, m, 0, 0);
+    return rand.toISOString().slice(0, 19);
+}
+
+async function bulkHandleFileUpload(fileList) {
+    if (!fileList.length) return;
+    const formData = new FormData();
+    for (const f of fileList) formData.append('files', f);
+    showLoading('Przetwarzam pliki...');
+    try {
+        const resp = await fetch(`${API}/api/upload-files`, { method: 'POST', body: formData });
+        if (!resp.ok) throw new Error('Upload error');
+        const data = await resp.json();
+        for (const f of data.files) {
+            if (!bulkUploadedFiles.find(u => u.filename === f.filename)) {
+                bulkUploadedFiles.push(f);
+            }
+        }
+        bulkRenderUploadedFiles();
+    } catch (e) {
+        alert('Blad uploadu: ' + e.message);
+    } finally {
+        hideLoading();
+        document.getElementById('bulk-source-files').value = '';
+    }
+}
+
+function bulkRenderUploadedFiles() {
+    const container = document.getElementById('bulk-uploaded-files-list');
+    if (!bulkUploadedFiles.length) { container.innerHTML = ''; return; }
+    container.innerHTML = '<div style="padding:8px 4px 4px">' + bulkUploadedFiles.map((f, i) => {
+        const cls = f.error ? 'file-chip error' : 'file-chip ok';
+        const info = f.error ? f.error : `${f.chars} znakow`;
+        return `<span class="${cls}">${escapeHtml(f.filename)} (${info}) <span class="remove" onclick="bulkRemoveFile(${i})">x</span></span>`;
+    }).join('') + '</div>';
+}
+
+function bulkRemoveFile(idx) {
+    bulkUploadedFiles.splice(idx, 1);
+    bulkRenderUploadedFiles();
 }
 
 async function runBulkGeneration() {
@@ -1584,6 +1661,23 @@ async function runBulkGeneration() {
     const styleDesc = styleOption && styleOption.dataset.desc ? decodeURIComponent(styleOption.dataset.desc) : '';
     const customStyle = document.getElementById('bulk-style-custom').value.trim();
 
+    // Source URLs
+    const sourceUrls = document.getElementById('bulk-source-urls').value.trim()
+        .split('\n').map(u => u.trim()).filter(u => u);
+
+    // File texts from uploaded PDFs
+    const fileTexts = bulkUploadedFiles.filter(f => f.text).map(f => f.text);
+
+    // Custom links
+    const customLinksText = document.getElementById('bulk-custom-links').value.trim();
+    const customLinks = customLinksText ? customLinksText.split('\n').map(l => l.trim()).filter(l => l) : [];
+    const linksPerArticle = parseInt(document.getElementById('bulk-links-count').value) || 3;
+
+    // Scheduling
+    const publishStatus = document.getElementById('bulk-publish-status').value;
+    const dateFrom = document.getElementById('bulk-date-from').value;
+    const dateTo = document.getElementById('bulk-date-to').value;
+
     const settings = {
         model: document.getElementById('bulk-ai-model').value,
         language: document.getElementById('bulk-language').value,
@@ -1592,8 +1686,13 @@ async function runBulkGeneration() {
         additional_notes: document.getElementById('bulk-additional-notes').value.trim(),
         generate_tags: document.getElementById('bulk-generate-tags').checked,
         generate_seo: document.getElementById('bulk-generate-seo').checked,
+        generate_image: document.getElementById('bulk-generate-image').checked,
         wp_site: document.getElementById('bulk-wp-site').value,
-        publish_status: document.getElementById('bulk-publish-status').value,
+        publish_status: publishStatus,
+        source_urls: sourceUrls,
+        file_texts: fileTexts,
+        custom_links: customLinks,
+        links_per_article: linksPerArticle,
     };
 
     bulkCancelled = false;
@@ -1609,17 +1708,25 @@ async function runBulkGeneration() {
         document.getElementById('bulk-progress-bar').style.width = pct + '%';
         document.getElementById('bulk-progress-text').textContent = `Generuje ${i + 1} z ${topics.length}: "${topics[i]}"...`;
 
+        // Per-article scheduled date
+        let scheduledDate = '';
+        if (publishStatus === 'future' && dateFrom && dateTo) {
+            scheduledDate = bulkRandomDate(dateFrom, dateTo);
+        }
+
         try {
             const result = await apiPost('/api/generate-single', {
                 topic: topics[i],
                 ...settings,
+                scheduled_date: scheduledDate,
             });
 
+            const dateInfo = scheduledDate ? ` | Zaplanowano: ${scheduledDate.replace('T', ' ')}` : '';
             document.getElementById('bulk-results-list').innerHTML += `
                 <div class="list-item" style="margin-bottom:6px">
                     <div class="list-item-info">
                         <p>${escapeHtml(result.title)}</p>
-                        <p>${result.published ? 'Opublikowano' : 'Zapisano'} ${result.wp_link ? `| <a href="${result.wp_link}" target="_blank">Link</a>` : ''}</p>
+                        <p>${result.published ? 'Opublikowano' : 'Zapisano'}${dateInfo} ${result.wp_link ? `| <a href="${result.wp_link}" target="_blank">Link</a>` : ''}</p>
                     </div>
                     <span class="status-set">OK</span>
                 </div>

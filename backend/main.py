@@ -606,7 +606,9 @@ async def publish(req: PublishRequest):
 
 class InternalLinksRequest(BaseModel):
     content: str
-    wp_site: str
+    wp_site: str = ""
+    custom_links: list[str] = []
+    links_per_article: int = 3
     model: str = "claude"
 
 
@@ -619,32 +621,59 @@ class BulkItemRequest(BaseModel):
     target_length: int = 1200
     generate_tags: bool = True
     generate_seo: bool = True
+    generate_image: bool = False
     wp_site: str = ""
     publish_status: str = "draft"
+    scheduled_date: str = ""
+    source_urls: list[str] = []
+    file_texts: list[str] = []
+    custom_links: list[str] = []
+    links_per_article: int = 3
 
 
 @app.post("/api/internal-links")
 async def internal_links(req: InternalLinksRequest):
-    from backend.wordpress.client import get_posts
     from backend.ai.client import generate_text
 
-    posts = await get_posts(req.wp_site, per_page=50)
-    if not posts:
+    # Build links list from custom links and/or WP posts
+    links_list_parts = []
+
+    if req.custom_links:
+        for link in req.custom_links:
+            link = link.strip()
+            if not link:
+                continue
+            # Support "URL | anchor text" or just "URL"
+            if " | " in link:
+                url, title = link.split(" | ", 1)
+                links_list_parts.append(f'- "{title.strip()}" -> {url.strip()}')
+            else:
+                links_list_parts.append(f"- {link}")
+
+    if req.wp_site and not req.custom_links:
+        from backend.wordpress.client import get_posts
+        posts = await get_posts(req.wp_site, per_page=50)
+        for p in posts:
+            links_list_parts.append(f'- "{p["title"]}" -> {p["link"]}')
+
+    if not links_list_parts:
         return {"updated_content": req.content, "links_added": 0}
 
-    posts_list = "\n".join(f"- \"{p['title']}\" -> {p['link']}" for p in posts)
+    links_list = "\n".join(links_list_parts)
+    n = req.links_per_article
 
-    prompt = f"""Masz artykul HTML i liste istniejacych postow na blogu.
-Dodaj 2-5 linkow wewnetrznych do artykulu, wstawiajac je naturalnie w tresci (jako <a href="URL">anchor text</a>).
+    prompt = f"""Masz artykul HTML i liste linkow do wstawienia.
+Dodaj dokladnie {n} linkow wewnetrznych do artykulu, wstawiajac je naturalnie w tresci (jako <a href="URL">anchor text</a>).
 
 Zasady:
-- Linkuj tylko do tematycznie powiazanych postow
-- Anchor text powinien byc naturalny (nie "kliknij tutaj")
+- Wybierz {n} najlepiej pasujacych tematycznie linkow z listy
+- Anchor text powinien byc naturalny, pasujacy do kontekstu zdania (nie "kliknij tutaj")
 - Nie zmieniaj struktury ani tresci artykulu poza dodaniem linkow
-- Jesli zaden post nie pasuje tematycznie, zwroc oryginalny HTML bez zmian
+- Kazdy link wstaw w innym akapicie/sekcji artykulu
+- Jesli link nie ma podanego tytulu, wymysl naturalny anchor text
 
-Istniejace posty:
-{posts_list}
+Dostepne linki:
+{links_list}
 
 Artykul HTML:
 {req.content}
@@ -652,7 +681,6 @@ Artykul HTML:
 Odpowiedz TYLKO zmodyfikowanym HTML artykulu, bez komentarzy."""
 
     updated = await generate_text(prompt, model=req.model, max_tokens=max(4096, len(req.content) * 2))
-    # Count added links roughly
     original_links = len(re.findall(r'<a\s', req.content))
     new_links = len(re.findall(r'<a\s', updated))
     return {"updated_content": updated, "links_added": max(0, new_links - original_links)}
@@ -660,7 +688,15 @@ Odpowiedz TYLKO zmodyfikowanym HTML artykulu, bez komentarzy."""
 
 @app.post("/api/generate-single")
 async def generate_single(req: BulkItemRequest):
-    """Generate a complete article from topic alone (outline + content + SEO + tags), optionally publish."""
+    """Generate a complete article (outline + content + links + SEO + tags + image), optionally publish."""
+    from backend.ai.client import generate_text
+
+    # Scrape source URLs if provided
+    source_texts = list(req.file_texts)
+    if req.source_urls:
+        sources = await step_scrape(req.source_urls)
+        source_texts.extend([s["text"] for s in sources if s.get("text")])
+
     settings = req.model_dump()
     settings["paragraphs_min"] = 4
     settings["paragraphs_max"] = 8
@@ -670,35 +706,65 @@ async def generate_single(req: BulkItemRequest):
     settings["tags_max"] = 8
 
     # 1. Outline
-    outline = await step_outline(settings, [])
+    outline = await step_outline(settings, source_texts)
 
     # 2. Content
-    content = await step_generate_content(settings, outline, [])
+    content = await step_generate_content(settings, outline, source_texts)
 
-    # 3. SEO
+    # 3. Internal links
+    if req.custom_links:
+        links_result = await internal_links(InternalLinksRequest(
+            content=content,
+            wp_site=req.wp_site,
+            custom_links=req.custom_links,
+            links_per_article=req.links_per_article,
+            model=req.model,
+        ))
+        content = links_result["updated_content"]
+
+    # 4. SEO
     seo = {}
     if req.generate_seo:
         seo = await step_seo_meta(outline.get("title", req.topic), content, req.language, req.model)
 
-    # 4. Tags
+    # 5. Tags + Categories
     tags = []
     if req.generate_tags:
         tags = await step_tags(outline.get("title", req.topic), content, settings)
 
-    # 5. Publish if wp_site provided
+    category_ids = []
+    if req.wp_site:
+        try:
+            suggested_ids, _ = await step_suggest_categories(
+                outline.get("title", req.topic), content, req.wp_site, req.model
+            )
+            category_ids = suggested_ids
+        except Exception:
+            pass
+
+    # 6. Featured image
+    featured_image_url = None
+    if req.generate_image:
+        try:
+            featured_image_url = await generate_featured_image_url(outline.get("title", req.topic))
+        except Exception:
+            pass
+
+    # 7. Publish if wp_site provided
     publish_result = None
     if req.wp_site:
         publish_result = await step_publish(
             wp_site=req.wp_site,
             title=outline.get("title", req.topic),
             content=content,
-            category_ids=[],
+            category_ids=category_ids,
             tag_names=tags,
             meta_title=seo.get("meta_title", ""),
             meta_description=seo.get("meta_description", ""),
             slug=seo.get("slug", ""),
-            featured_image_url=None,
+            featured_image_url=featured_image_url,
             publish_status=req.publish_status,
+            scheduled_date=req.scheduled_date,
         )
 
     # 6. Save to DB

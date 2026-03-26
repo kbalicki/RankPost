@@ -232,9 +232,18 @@
                     <div id="article-preview" class="gen-wysiwyg-editor prose" contenteditable="true"></div>
                     <textarea id="article-html" class="input hidden" style="height:300px;font-family:monospace;font-size:13px"></textarea>
                 </div>
+                <div class="card">
+                    <div class="card-title">Linki wewnetrzne (opcjonalnie)</div>
+                    <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Podaj linki do wstawienia (po jednym w linii). Format: <code>https://url.pl</code> lub <code>https://url.pl | tekst anchora</code></p>
+                    <textarea id="wiz-custom-links" class="input" style="height:100px;font-size:12px" placeholder="https://e-wypoczynek.pl/najlepsze-hotele/ | najlepsze hotele&#10;https://e-wypoczynek.pl/pakowanie/&#10;https://e-wypoczynek.pl/ubezpieczenie-podrozne/"></textarea>
+                    <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+                        <label class="label" style="margin:0">Linkow na artykul:</label>
+                        <input id="wiz-links-count" type="number" value="3" min="1" max="10" class="input" style="width:60px">
+                        <button onclick="addInternalLinks()" class="btn-secondary">Wstaw linki</button>
+                    </div>
+                </div>
                 <div class="btn-row">
                     <button onclick="goToStep(2)" class="btn-secondary">Wstecz</button>
-                    <button onclick="addInternalLinks()" class="btn-secondary">Linki wewnetrzne</button>
                     <button onclick="wizContentScore()" class="btn-secondary">Sprawdz jakosc</button>
                     <button onclick="goToSeoStep()" id="btn-seo" class="btn-primary">Dalej: SEO & Tagi</button>
                 </div>
@@ -527,8 +536,44 @@
     <div id="panel-bulk" class="tab-panel hidden">
         <div class="page-header"><h2>Bulk generation</h2></div>
         <div class="page-body" style="max-width:920px">
+
             <div class="card">
-                <div class="card-title">Ustawienia</div>
+                <div class="card-title">Tematy artykulow (po jednym w linii)</div>
+                <textarea id="bulk-topics" class="input" style="height:140px;font-size:13px" placeholder="Jak wybrac hosting dla WordPress&#10;Najlepsze wtyczki SEO w 2025&#10;Poradnik: optymalizacja szybkosci strony"></textarea>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Zrodla i kontekst</div>
+                <div class="form-grid">
+                    <div class="full">
+                        <label class="label">Linki zrodlowe (po jednym w linii, wspolne dla wszystkich artykulow)</label>
+                        <textarea id="bulk-source-urls" class="input" style="height:70px" placeholder="https://example.com/article1&#10;https://example.com/article2"></textarea>
+                    </div>
+                    <div class="full">
+                        <label class="label">Pliki zrodlowe (PDF, DOCX, XLSX, TXT)</label>
+                        <div class="file-upload-area" id="bulk-file-drop-zone">
+                            <input type="file" id="bulk-source-files" multiple accept=".pdf,.docx,.xlsx,.txt" style="display:none">
+                            <div class="file-upload-prompt" onclick="document.getElementById('bulk-source-files').click()">
+                                Kliknij lub przeciagnij pliki tutaj
+                            </div>
+                            <div id="bulk-uploaded-files-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Linki wewnetrzne</div>
+                <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px">AI wplecie wybrana liczbe linkow naturalnie w kazdy artykul. Format: <code>https://url.pl</code> lub <code>https://url.pl | tekst anchora</code></p>
+                <textarea id="bulk-custom-links" class="input" style="height:120px;font-size:12px" placeholder="https://e-wypoczynek.pl/najlepsze-hotele/ | najlepsze hotele&#10;https://e-wypoczynek.pl/pakowanie/&#10;https://e-wypoczynek.pl/ubezpieczenie-podrozne/"></textarea>
+                <div style="margin-top:8px">
+                    <label class="label" style="display:inline;margin-right:6px">Linkow na artykul:</label>
+                    <input id="bulk-links-count" type="number" value="3" min="0" max="10" class="input" style="width:60px;display:inline-block">
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Ustawienia generowania</div>
                 <div class="form-grid">
                     <div>
                         <label class="label">Model AI</label>
@@ -562,33 +607,42 @@
                         </select>
                     </div>
                     <div>
-                        <label class="label">Serwis WP (opcjonalnie)</label>
-                        <select id="bulk-wp-site" class="input"><option value="">-- bez publikacji --</option></select>
+                        <label class="label">Dodatkowe uwagi</label>
+                        <input id="bulk-additional-notes" type="text" class="input" placeholder="Instrukcje dla AI...">
                     </div>
-                    <div>
-                        <label class="label">Status publikacji</label>
-                        <select id="bulk-publish-status" class="input">
-                            <option value="draft" selected>Szkic (draft)</option>
-                            <option value="publish">Opublikuj</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="label">Tagi / SEO</label>
+                    <div class="full">
                         <div class="check-row">
                             <label class="check-label"><input id="bulk-generate-tags" type="checkbox" checked> Generuj tagi</label>
                             <label class="check-label"><input id="bulk-generate-seo" type="checkbox" checked> Meta SEO</label>
+                            <label class="check-label"><input id="bulk-generate-image" type="checkbox"> Zdjecie AI (DALL-E)</label>
                         </div>
-                    </div>
-                    <div class="full">
-                        <label class="label">Dodatkowe uwagi</label>
-                        <textarea id="bulk-additional-notes" class="input" style="height:50px" placeholder="Instrukcje dla AI..."></textarea>
                     </div>
                 </div>
             </div>
 
             <div class="card">
-                <div class="card-title">Tematy artykulow (po jednym w linii)</div>
-                <textarea id="bulk-topics" class="input" style="height:180px;font-size:13px" placeholder="Jak wybrac hosting dla WordPress&#10;Najlepsze wtyczki SEO w 2025&#10;Poradnik: optymalizacja szybkosci strony"></textarea>
+                <div class="card-title">Publikacja na WordPress</div>
+                <div class="form-grid">
+                    <div>
+                        <label class="label">Serwis WP</label>
+                        <select id="bulk-wp-site" class="input"><option value="">-- bez publikacji --</option></select>
+                    </div>
+                    <div>
+                        <label class="label">Status publikacji</label>
+                        <select id="bulk-publish-status" class="input" onchange="bulkToggleSchedule()">
+                            <option value="draft" selected>Szkic (draft)</option>
+                            <option value="publish">Opublikuj</option>
+                            <option value="future">Zaplanuj (losowe daty)</option>
+                        </select>
+                    </div>
+                    <div id="bulk-schedule-range" class="hidden">
+                        <label class="label">Zakres dat (losowe daty z tego zakresu)</label>
+                        <div style="display:flex;gap:8px">
+                            <input id="bulk-date-from" type="date" class="input" value="2026-03-01">
+                            <input id="bulk-date-to" type="date" class="input" value="2026-03-31">
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="btn-row">
