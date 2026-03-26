@@ -1594,6 +1594,13 @@ function initBulk() {
             bulkHandleFileUpload(e.dataTransfer.files);
         });
     }
+
+    // Live distribution preview
+    const topicsEl = document.getElementById('bulk-topics');
+    const totalEl = document.getElementById('bulk-total-articles');
+    if (topicsEl) topicsEl.addEventListener('input', bulkUpdatePreview);
+    if (totalEl) totalEl.addEventListener('input', bulkUpdatePreview);
+    bulkUpdatePreview();
 }
 
 function bulkToggleSchedule() {
@@ -1649,12 +1656,34 @@ function bulkRemoveFile(idx) {
     bulkRenderUploadedFiles();
 }
 
-async function runBulkGeneration() {
-    const topicsText = document.getElementById('bulk-topics').value.trim();
-    if (!topicsText) return alert('Wpisz przynajmniej jeden temat');
+function bulkDistribute(phrases, total) {
+    // Round-robin: distribute total articles across phrases
+    const dist = phrases.map(() => 0);
+    for (let i = 0; i < total; i++) {
+        dist[i % phrases.length]++;
+    }
+    return dist;
+}
 
-    const topics = topicsText.split('\n').map(t => t.trim()).filter(t => t);
-    if (!topics.length) return alert('Wpisz przynajmniej jeden temat');
+function bulkUpdatePreview() {
+    const text = document.getElementById('bulk-topics').value.trim();
+    const phrases = text ? text.split('\n').map(t => t.trim()).filter(t => t) : [];
+    const total = parseInt(document.getElementById('bulk-total-articles').value) || 1;
+    const preview = document.getElementById('bulk-distribution-preview');
+    if (!phrases.length) { preview.textContent = ''; return; }
+    const dist = bulkDistribute(phrases, total);
+    preview.textContent = dist.map((n, i) => `"${phrases[i].substring(0, 25)}${phrases[i].length > 25 ? '...' : ''}" × ${n}`).join(', ');
+}
+
+async function runBulkGeneration() {
+    const phrasesText = document.getElementById('bulk-topics').value.trim();
+    if (!phrasesText) return alert('Wpisz przynajmniej jedna fraze kluczowa');
+
+    const phrases = phrasesText.split('\n').map(t => t.trim()).filter(t => t);
+    if (!phrases.length) return alert('Wpisz przynajmniej jedna fraze kluczowa');
+
+    const totalArticles = parseInt(document.getElementById('bulk-total-articles').value) || phrases.length;
+    const distribution = bulkDistribute(phrases, totalArticles);
 
     const styleSel = document.getElementById('bulk-style-select');
     const styleOption = styleSel.selectedOptions[0];
@@ -1695,18 +1724,42 @@ async function runBulkGeneration() {
         links_per_article: linksPerArticle,
     };
 
+    // Build task list from distribution
+    const tasks = [];
+    for (let p = 0; p < phrases.length; p++) {
+        for (let n = 0; n < distribution[p]; n++) {
+            tasks.push(phrases[p]);
+        }
+    }
+
+    const totalTasks = tasks.length;
     bulkCancelled = false;
     document.getElementById('btn-bulk-run').disabled = true;
     document.getElementById('btn-bulk-cancel').classList.remove('hidden');
     document.getElementById('bulk-progress').classList.remove('hidden');
     document.getElementById('bulk-results-list').innerHTML = '';
 
-    for (let i = 0; i < topics.length; i++) {
+    for (let i = 0; i < totalTasks; i++) {
         if (bulkCancelled) break;
 
-        const pct = Math.round(((i) / topics.length) * 100);
+        const phrase = tasks[i];
+        const pct = Math.round(((i) / totalTasks) * 100);
         document.getElementById('bulk-progress-bar').style.width = pct + '%';
-        document.getElementById('bulk-progress-text').textContent = `Generuje ${i + 1} z ${topics.length}: "${topics[i]}"...`;
+        document.getElementById('bulk-progress-text').textContent = `[${i + 1}/${totalTasks}] Generuje temat dla frazy: "${phrase}"...`;
+
+        // Step 1: Generate topic from keyword phrase
+        let topic = phrase;
+        try {
+            const topicData = await apiPost('/api/generate-topic', {
+                keyword: phrase,
+                language: settings.language,
+            });
+            topic = topicData.topic || phrase;
+        } catch (e) {
+            // Fallback: use phrase as topic
+        }
+
+        document.getElementById('bulk-progress-text').textContent = `[${i + 1}/${totalTasks}] Generuje artykul: "${topic}"...`;
 
         // Per-article scheduled date
         let scheduledDate = '';
@@ -1716,7 +1769,7 @@ async function runBulkGeneration() {
 
         try {
             const result = await apiPost('/api/generate-single', {
-                topic: topics[i],
+                topic,
                 ...settings,
                 scheduled_date: scheduledDate,
             });
@@ -1726,7 +1779,7 @@ async function runBulkGeneration() {
                 <div class="list-item" style="margin-bottom:6px">
                     <div class="list-item-info">
                         <p>${escapeHtml(result.title)}</p>
-                        <p>${result.published ? 'Opublikowano' : 'Zapisano'}${dateInfo} ${result.wp_link ? `| <a href="${result.wp_link}" target="_blank">Link</a>` : ''}</p>
+                        <p>Fraza: "${escapeHtml(phrase)}" | ${result.published ? 'Opublikowano' : 'Zapisano'}${dateInfo} ${result.wp_link ? `| <a href="${result.wp_link}" target="_blank">Link</a>` : ''}</p>
                     </div>
                     <span class="status-set">OK</span>
                 </div>
@@ -1735,7 +1788,7 @@ async function runBulkGeneration() {
             document.getElementById('bulk-results-list').innerHTML += `
                 <div class="list-item" style="margin-bottom:6px">
                     <div class="list-item-info">
-                        <p>${escapeHtml(topics[i])}</p>
+                        <p>Fraza: "${escapeHtml(phrase)}" | Temat: "${escapeHtml(topic)}"</p>
                         <p>${escapeHtml(e.message)}</p>
                     </div>
                     <span class="status-unset">BLAD</span>
@@ -1745,9 +1798,10 @@ async function runBulkGeneration() {
     }
 
     document.getElementById('bulk-progress-bar').style.width = '100%';
+    const done = document.querySelectorAll('#bulk-results-list .status-set').length;
     document.getElementById('bulk-progress-text').textContent = bulkCancelled
-        ? `Anulowano. Wygenerowano ${document.querySelectorAll('#bulk-results-list .list-item').length} z ${topics.length}.`
-        : `Gotowe! Wygenerowano ${topics.length} artykulow.`;
+        ? `Anulowano. Wygenerowano ${done} z ${totalTasks}.`
+        : `Gotowe! Wygenerowano ${done} artykulow z ${phrases.length} fraz.`;
     document.getElementById('btn-bulk-run').disabled = false;
     document.getElementById('btn-bulk-cancel').classList.add('hidden');
 }

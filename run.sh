@@ -16,5 +16,5 @@ if [ ! -f ".env" ]; then
     exit 1
 fi
 
-echo "Uruchamiam RankPost na http://localhost:8000"
-uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+echo "Uruchamiam RankPost na http://localhost:8100"
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 8100

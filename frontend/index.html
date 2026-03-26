@@ -538,8 +538,16 @@
         <div class="page-body" style="max-width:920px">
 
             <div class="card">
-                <div class="card-title">Tematy artykulow (po jednym w linii)</div>
-                <textarea id="bulk-topics" class="input" style="height:140px;font-size:13px" placeholder="Jak wybrac hosting dla WordPress&#10;Najlepsze wtyczki SEO w 2025&#10;Poradnik: optymalizacja szybkosci strony"></textarea>
+                <div class="card-title">Frazy kluczowe (po jednej w linii)</div>
+                <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px">AI wygeneruje unikalny tytul artykulu dla kazdej frazy. Artykuly sa rozdzielane rownomiernie miedzy frazy (round-robin).</p>
+                <textarea id="bulk-topics" class="input" style="height:140px;font-size:13px" placeholder="ubezpieczenie podrozne&#10;co zabrac na wakacje 2026&#10;najlepsze hotele w Turcji all inclusive"></textarea>
+                <div style="margin-top:10px;display:flex;align-items:center;gap:12px">
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <label class="label" style="margin:0;white-space:nowrap">Laczna liczba artykulow:</label>
+                        <input id="bulk-total-articles" type="number" value="3" min="1" max="50" class="input" style="width:70px">
+                    </div>
+                    <span id="bulk-distribution-preview" style="font-size:12px;color:var(--text-muted)"></span>
+                </div>
             </div>
 
             <div class="card">

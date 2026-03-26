@@ -686,6 +686,23 @@ Odpowiedz TYLKO zmodyfikowanym HTML artykulu, bez komentarzy."""
     return {"updated_content": updated, "links_added": max(0, new_links - original_links)}
 
 
+@app.post("/api/generate-topic")
+async def generate_topic_from_keyword(req: KeywordRequest):
+    """Generate an article topic/title from a keyword phrase."""
+    from backend.ai.client import generate_text
+    lang_label = "polskim" if req.language == "pl" else "angielskim"
+    prompt = f"""Wymysl chwytliwy, SEO-friendly tytul artykulu blogowego w jezyku {lang_label} na podstawie frazy kluczowej: "{req.keyword}"
+
+Zasady:
+- Tytul powinien byc naturalny i angazujacy
+- Zawieraj fraze kluczowa lub jej odmiane
+- Dlugosc: 40-70 znakow
+- Odpowiedz TYLKO tytulem, bez cudzyslowow i dodatkowych znakow."""
+
+    title = await generate_text(prompt, model="claude-cli", max_tokens=100)
+    return {"topic": title.strip().strip('"').strip("'")}
+
+
 @app.post("/api/generate-single")
 async def generate_single(req: BulkItemRequest):
     """Generate a complete article (outline + content + links + SEO + tags + image), optionally publish."""
