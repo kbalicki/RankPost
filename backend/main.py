@@ -102,6 +102,7 @@ class PublishRequest(BaseModel):
 
 class FeaturedImageRequest(BaseModel):
     title: str
+    image_style: str = "photorealistic"
 
 class StyleTemplate(BaseModel):
     name: str
@@ -157,6 +158,7 @@ class StructureTemplate(BaseModel):
 class ImageGalleryRequest(BaseModel):
     title: str
     count: int = 4
+    image_style: str = "photorealistic"
 
 
 # --- Settings API ---
@@ -314,25 +316,27 @@ async def suggest_cats(req: CategoriesRequest):
 
 @app.post("/api/featured-image")
 async def featured_image(req: FeaturedImageRequest):
-    url = await generate_featured_image_url(req.title)
+    url = await generate_featured_image_url(req.title, image_style=req.image_style)
     return {"image_url": url}
 
 
 @app.post("/api/image-gallery")
 async def image_gallery(req: ImageGalleryRequest):
+    from backend.content.generator import IMAGE_STYLE_PROMPTS
     from backend.ai.client import generate_image
+    style_prompt = IMAGE_STYLE_PROMPTS.get(req.image_style, IMAGE_STYLE_PROMPTS["photorealistic"])
     urls = []
-    prompts = [
-        f"Professional blog header for '{req.title}'. Clean modern design, no text.",
-        f"Minimalist illustration for article '{req.title}'. Flat design, subtle colors.",
-        f"Abstract conceptual image for '{req.title}'. Professional, corporate style.",
-        f"Creative editorial photo concept for '{req.title}'. Warm lighting, magazine quality.",
+    variations = [
+        f"Blog header for '{req.title}'. Wide angle, establishing shot. {style_prompt}",
+        f"Detail shot for article '{req.title}'. Close-up, shallow depth of field. {style_prompt}",
+        f"Atmospheric scene for '{req.title}'. Moody, environmental context. {style_prompt}",
+        f"Action/lifestyle shot for '{req.title}'. Dynamic composition, natural moment. {style_prompt}",
     ]
     for i in range(min(req.count, 4)):
         try:
-            url = await generate_image(prompts[i])
+            url = await generate_image(variations[i])
             urls.append(url)
-        except Exception as e:
+        except Exception:
             urls.append(None)
     return {"images": [u for u in urls if u]}
 
@@ -626,6 +630,7 @@ class BulkItemRequest(BaseModel):
     generate_tags: bool = True
     generate_seo: bool = True
     generate_image: bool = False
+    image_style: str = "photorealistic"
     wp_site: str = ""
     publish_status: str = "draft"
     scheduled_date: str = ""
@@ -750,11 +755,17 @@ async def generate_single(req: BulkItemRequest):
     logger.info(f"  Step 1/7: Outline done. Title: '{outline.get('title', '?')}', sections: {len(outline.get('sections', []))}")
 
     # 2. Content
-    logger.info(f"  Step 2/7: Generating content ({req.target_length} words)...")
+    logger.info(f"  Step 2/8: Generating content ({req.target_length} words)...")
     content = await step_generate_content(settings, outline, source_texts)
-    logger.info(f"  Step 2/7: Content done. Length: {len(content)} chars")
+    logger.info(f"  Step 2/8: Content done. Length: {len(content)} chars")
 
-    # 3. Internal links
+    # 3. Humanize
+    logger.info(f"  Step 3/8: Humanizing content...")
+    from backend.content.generator import humanize_content
+    content = await humanize_content(content, language=req.language, model=req.model)
+    logger.info(f"  Step 3/8: Humanize done. Length: {len(content)} chars")
+
+    # 4. Internal links
     if req.custom_links:
         logger.info(f"  Step 3/7: Adding {req.links_per_article} internal links...")
         links_result = await internal_links(InternalLinksRequest(
@@ -792,7 +803,7 @@ async def generate_single(req: BulkItemRequest):
     featured_image_url = None
     if req.generate_image:
         try:
-            featured_image_url = await generate_featured_image_url(outline.get("title", req.topic))
+            featured_image_url = await generate_featured_image_url(outline.get("title", req.topic), image_style=req.image_style)
         except Exception:
             pass
 

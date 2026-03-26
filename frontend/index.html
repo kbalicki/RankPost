@@ -184,8 +184,19 @@
                                 <label class="check-label"><input id="include-summary" type="checkbox" checked> Podsumowanie</label>
                                 <label class="check-label"><input id="generate-tags" type="checkbox" checked> Generuj tagi</label>
                                 <label class="check-label"><input id="generate-seo" type="checkbox" checked> Meta SEO</label>
-                                <label class="check-label"><input id="generate-image" type="checkbox"> Zdjecie AI</label>
+                                <label class="check-label"><input id="generate-image" type="checkbox" onchange="document.getElementById('wiz-image-style-row').classList.toggle('hidden', !this.checked)"> Zdjecie AI</label>
                             </div>
+                        </div>
+                        <div id="wiz-image-style-row" class="hidden">
+                            <label class="label">Styl zdjecia</label>
+                            <select id="wiz-image-style" class="input">
+                                <option value="photorealistic" selected>Fotorealistyczne (zdjecie)</option>
+                                <option value="editorial">Edytorskie (magazynowe)</option>
+                                <option value="cinematic">Kinowe (dramatyczne)</option>
+                                <option value="minimalist">Minimalistyczne (flat design)</option>
+                                <option value="watercolor">Akwarela (artystyczne)</option>
+                                <option value="3d-render">3D render (studio)</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -627,6 +638,17 @@
                             <label class="check-label"><input id="bulk-generate-seo" type="checkbox" checked> Meta SEO</label>
                             <label class="check-label"><input id="bulk-generate-image" type="checkbox"> Zdjecie AI (DALL-E)</label>
                         </div>
+                    </div>
+                    <div id="bulk-image-style-row" class="hidden">
+                        <label class="label">Styl zdjecia</label>
+                        <select id="bulk-image-style" class="input">
+                            <option value="photorealistic" selected>Fotorealistyczne (zdjecie)</option>
+                            <option value="editorial">Edytorskie (magazynowe)</option>
+                            <option value="cinematic">Kinowe (dramatyczne)</option>
+                            <option value="minimalist">Minimalistyczne (flat design)</option>
+                            <option value="watercolor">Akwarela (artystyczne)</option>
+                            <option value="3d-render">3D render (studio)</option>
+                        </select>
                     </div>
                 </div>
             </div>

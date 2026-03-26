@@ -1595,6 +1595,14 @@ function initBulk() {
         });
     }
 
+    // Image style toggle
+    const imgCheck = document.getElementById('bulk-generate-image');
+    if (imgCheck) {
+        imgCheck.addEventListener('change', () => {
+            document.getElementById('bulk-image-style-row').classList.toggle('hidden', !imgCheck.checked);
+        });
+    }
+
     // Live distribution preview
     const topicsEl = document.getElementById('bulk-topics');
     const totalEl = document.getElementById('bulk-total-articles');
@@ -1716,6 +1724,7 @@ async function runBulkGeneration() {
         generate_tags: document.getElementById('bulk-generate-tags').checked,
         generate_seo: document.getElementById('bulk-generate-seo').checked,
         generate_image: document.getElementById('bulk-generate-image').checked,
+        image_style: document.getElementById('bulk-image-style').value,
         wp_site: document.getElementById('bulk-wp-site').value,
         publish_status: publishStatus,
         source_urls: sourceUrls,

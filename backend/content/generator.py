@@ -112,6 +112,32 @@ Odpowiedz TYLKO trescia HTML artykulu, bez zadnych komentarzy."""
     return await generate_text(prompt, system=SYSTEM_PROMPT, model=model, max_tokens=max(4096, target_length * 3))
 
 
+async def humanize_content(content: str, language: str = "pl", model: str = "claude") -> str:
+    """Rewrite AI-generated content to sound naturally human-written."""
+    lang_label = "polskim" if language == "pl" else "angielskim"
+    prompt = f"""Przepisz ponizszy artykul HTML w jezyku {lang_label}, aby brzmial naturalnie i ludzko.
+
+Zasady:
+- Usun typowe wzorce AI: "W dzisiejszym swiecie...", "Warto zauwazyc, ze...", "Podsumowujac..."
+- Dodaj osobiste zwroty: "Sprawdzilem to sam", "Z mojego doswiadczenia", "Szczerze mowiac"
+- Uzywaj roznej dlugosci zdan - krotkie, srednie i dlugie na przemian
+- Wstaw potoczne wyrazenia i idiomy tam gdzie pasuja
+- Nie uzywaj perfekcyjnych przejsc miedzy akapitami - ludzie tak nie pisza
+- Zachowaj wszystkie fakty, linki, naglowki i strukture HTML
+- Czasem zacznij zdanie od "I", "Ale", "Bo" - naturalny jezyk
+- Unikaj powtarzania tych samych przymiotnikow
+- Zachowaj ten sam format HTML (h2, h3, p, ul, ol, strong, em, a)
+- NIE dodawaj nowych linkow ani nie usuwaj istniejacych
+- NIE zmieniaj naglowkow H2/H3
+
+Artykul HTML:
+{content}
+
+Odpowiedz TYLKO przepisanym HTML artykulu, bez komentarzy."""
+
+    return await generate_text(prompt, model=model, max_tokens=max(4096, len(content) * 2))
+
+
 async def generate_seo_meta(title: str, content_preview: str, language: str, model: str) -> dict:
     lang_label = "polskim" if language == "pl" else "angielskim"
     prompt = f"""Na podstawie tytulu i fragmentu artykulu wygeneruj meta dane SEO w jezyku {lang_label}.
@@ -160,6 +186,16 @@ Odpowiedz TYLKO jako JSON array z ID kategorii, np: [1, 5]"""
     return _parse_json_response(result, fallback=[])
 
 
-async def generate_featured_image_url(title: str, model: str = "dall-e-3") -> str:
-    prompt = f"Professional, modern blog header image for article titled: '{title}'. Clean design, no text on image, suitable for a professional blog."
+IMAGE_STYLE_PROMPTS = {
+    "photorealistic": "Photorealistic, high-quality photograph. Natural lighting, sharp focus, shot on Canon EOS R5. No text, no watermarks.",
+    "editorial": "Editorial magazine-quality photograph. Professional lighting, cinematic composition, bokeh background. No text.",
+    "minimalist": "Minimalist flat design illustration. Clean lines, pastel colors, simple geometric shapes. No text.",
+    "watercolor": "Artistic watercolor painting style. Soft colors, flowing brushstrokes, artistic and elegant. No text.",
+    "3d-render": "3D rendered scene, smooth materials, soft studio lighting, clay render style. Modern and clean. No text.",
+    "cinematic": "Cinematic wide-angle shot, dramatic lighting, film grain, moody atmosphere. Movie poster quality. No text.",
+}
+
+async def generate_featured_image_url(title: str, image_style: str = "photorealistic") -> str:
+    style_prompt = IMAGE_STYLE_PROMPTS.get(image_style, IMAGE_STYLE_PROMPTS["photorealistic"])
+    prompt = f"Blog header image for article: '{title}'. {style_prompt}"
     return await generate_image(prompt)
