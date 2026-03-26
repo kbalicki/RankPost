@@ -1,8 +1,12 @@
 import json
 import re
 import asyncio
+import logging
 import httpx
 from contextlib import asynccontextmanager
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("rankpost")
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -686,27 +690,45 @@ Odpowiedz TYLKO zmodyfikowanym HTML artykulu, bez komentarzy."""
     return {"updated_content": updated, "links_added": max(0, new_links - original_links)}
 
 
+class GenerateTopicRequest(BaseModel):
+    keyword: str
+    language: str = "pl"
+    model: str = "claude-cli"
+    avoid_titles: list[str] = []
+
 @app.post("/api/generate-topic")
-async def generate_topic_from_keyword(req: KeywordRequest):
+async def generate_topic_from_keyword(req: GenerateTopicRequest):
     """Generate an article topic/title from a keyword phrase."""
     from backend.ai.client import generate_text
     lang_label = "polskim" if req.language == "pl" else "angielskim"
+
+    avoid_block = ""
+    if req.avoid_titles:
+        avoid_block = "\n\nTYTULY JUZ UYTE (wymysl INNY, unikalny tytul, nie powtarzaj):\n" + "\n".join(f"- {t}" for t in req.avoid_titles)
+
     prompt = f"""Wymysl chwytliwy, SEO-friendly tytul artykulu blogowego w jezyku {lang_label} na podstawie frazy kluczowej: "{req.keyword}"
 
 Zasady:
-- Tytul powinien byc naturalny i angazujacy
+- Tytul powinien byc naturalny, unikalny i angazujacy
 - Zawieraj fraze kluczowa lub jej odmiane
+- Uzyj zaskakujacej formy (pytanie, lista, poradnik, porownanie, mit vs fakt, itp.)
 - Dlugosc: 40-70 znakow
-- Odpowiedz TYLKO tytulem, bez cudzyslowow i dodatkowych znakow."""
+- Odpowiedz TYLKO tytulem, bez cudzyslowow i dodatkowych znakow{avoid_block}"""
 
-    title = await generate_text(prompt, model="claude-cli", max_tokens=100)
-    return {"topic": title.strip().strip('"').strip("'")}
+    logger.info(f"Generating topic for keyword: '{req.keyword}' (avoid {len(req.avoid_titles)} titles)")
+    title = await generate_text(prompt, model=req.model, max_tokens=100)
+    title = title.strip().strip('"').strip("'")
+    logger.info(f"Generated topic: '{title}'")
+    return {"topic": title}
 
 
 @app.post("/api/generate-single")
 async def generate_single(req: BulkItemRequest):
     """Generate a complete article (outline + content + links + SEO + tags + image), optionally publish."""
     from backend.ai.client import generate_text
+    import time as _time
+    _t0 = _time.time()
+    logger.info(f"=== GENERATE-SINGLE START: topic='{req.topic}' model={req.model} length={req.target_length} ===")
 
     # Scrape source URLs if provided
     source_texts = list(req.file_texts)
@@ -723,13 +745,18 @@ async def generate_single(req: BulkItemRequest):
     settings["tags_max"] = 8
 
     # 1. Outline
+    logger.info(f"  Step 1/7: Generating outline...")
     outline = await step_outline(settings, source_texts)
+    logger.info(f"  Step 1/7: Outline done. Title: '{outline.get('title', '?')}', sections: {len(outline.get('sections', []))}")
 
     # 2. Content
+    logger.info(f"  Step 2/7: Generating content ({req.target_length} words)...")
     content = await step_generate_content(settings, outline, source_texts)
+    logger.info(f"  Step 2/7: Content done. Length: {len(content)} chars")
 
     # 3. Internal links
     if req.custom_links:
+        logger.info(f"  Step 3/7: Adding {req.links_per_article} internal links...")
         links_result = await internal_links(InternalLinksRequest(
             content=content,
             wp_site=req.wp_site,
@@ -742,11 +769,13 @@ async def generate_single(req: BulkItemRequest):
     # 4. SEO
     seo = {}
     if req.generate_seo:
+        logger.info(f"  Step 4/7: Generating SEO meta...")
         seo = await step_seo_meta(outline.get("title", req.topic), content, req.language, req.model)
 
     # 5. Tags + Categories
     tags = []
     if req.generate_tags:
+        logger.info(f"  Step 5/7: Generating tags...")
         tags = await step_tags(outline.get("title", req.topic), content, settings)
 
     category_ids = []
@@ -784,7 +813,9 @@ async def generate_single(req: BulkItemRequest):
             scheduled_date=req.scheduled_date,
         )
 
-    # 6. Save to DB
+    # 8. Save to DB
+    _elapsed = round(_time.time() - _t0, 1)
+    logger.info(f"  Step 7/7: Saving to DB + done. Title: '{outline.get('title', '?')}' | Tags: {tags} | Categories: {category_ids} | Time: {_elapsed}s")
     article_id = await save_article({
         "title": outline.get("title", req.topic),
         "content": content,

@@ -157,6 +157,7 @@
                                 <option value="500">Krotki (~500)</option>
                                 <option value="1200" selected>Sredni (~1200)</option>
                                 <option value="2500">Dlugi (~2500)</option>
+                                <option value="5000">Bardzo dlugi (~5000)</option>
                                 <option value="custom">Wlasna wartosc</option>
                             </select>
                             <input id="target-length-custom" type="number" class="input hidden" style="margin-top:8px" placeholder="Liczba slow">
@@ -419,6 +420,7 @@
                                 <option value="500">Krotki (~500)</option>
                                 <option value="1200" selected>Sredni (~1200)</option>
                                 <option value="2500">Dlugi (~2500)</option>
+                                <option value="5000">Bardzo dlugi (~5000)</option>
                                 <option value="custom">Wlasna wartosc</option>
                             </select>
                             <input id="gen-target-length-custom" type="number" class="input hidden" style="margin-top:8px" placeholder="Liczba slow">
@@ -612,6 +614,7 @@
                             <option value="500">Krotki (~500)</option>
                             <option value="1200" selected>Sredni (~1200)</option>
                             <option value="2500">Dlugi (~2500)</option>
+                            <option value="5000">Bardzo dlugi (~5000)</option>
                         </select>
                     </div>
                     <div>
@@ -661,10 +664,14 @@
             <div id="bulk-progress" class="hidden" style="margin-top:16px">
                 <div class="card">
                     <div class="card-title">Postep</div>
-                    <div style="background:var(--bg-input);border-radius:4px;height:8px;margin-bottom:12px;overflow:hidden">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                        <p id="bulk-progress-text" style="font-size:13px;color:var(--text-secondary);margin:0"></p>
+                        <span id="bulk-progress-eta" style="font-size:12px;color:var(--text-muted);white-space:nowrap"></span>
+                    </div>
+                    <div style="background:var(--bg-input);border-radius:4px;height:10px;margin-bottom:8px;overflow:hidden">
                         <div id="bulk-progress-bar" style="height:100%;background:var(--green);width:0%;transition:width 0.3s"></div>
                     </div>
-                    <p id="bulk-progress-text" style="font-size:13px;color:var(--text-secondary)"></p>
+                    <p id="bulk-progress-step" style="font-size:12px;color:var(--text-muted);margin-bottom:12px"></p>
                     <div id="bulk-results-list" style="margin-top:12px"></div>
                 </div>
             </div>
@@ -721,6 +728,7 @@
                                 <option value="500">Krotki (~500)</option>
                                 <option value="1200" selected>Sredni (~1200)</option>
                                 <option value="2500">Dlugi (~2500)</option>
+                                <option value="5000">Bardzo dlugi (~5000)</option>
                             </select>
                         </div>
                         <div class="full">

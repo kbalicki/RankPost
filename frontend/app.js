@@ -1739,27 +1739,44 @@ async function runBulkGeneration() {
     document.getElementById('bulk-progress').classList.remove('hidden');
     document.getElementById('bulk-results-list').innerHTML = '';
 
+    const bulkStartTime = Date.now();
+    const articleTimes = []; // track time per article for ETA
+    const generatedTitles = []; // track titles to avoid duplicates
+
+    function bulkEta(done, total) {
+        if (!articleTimes.length) return '';
+        const avgMs = articleTimes.reduce((a, b) => a + b, 0) / articleTimes.length;
+        const remainMs = avgMs * (total - done);
+        if (remainMs < 60000) return `~${Math.round(remainMs / 1000)}s`;
+        return `~${Math.round(remainMs / 60000)} min`;
+    }
+
     for (let i = 0; i < totalTasks; i++) {
         if (bulkCancelled) break;
+        const articleStart = Date.now();
 
         const phrase = tasks[i];
         const pct = Math.round(((i) / totalTasks) * 100);
         document.getElementById('bulk-progress-bar').style.width = pct + '%';
-        document.getElementById('bulk-progress-text').textContent = `[${i + 1}/${totalTasks}] Generuje temat dla frazy: "${phrase}"...`;
+        document.getElementById('bulk-progress-text').textContent = `Artykul ${i + 1} z ${totalTasks}`;
+        document.getElementById('bulk-progress-step').textContent = `Krok 1/6: Generuje tytul dla frazy "${phrase}"...`;
+        document.getElementById('bulk-progress-eta').textContent = i > 0 ? `ETA: ${bulkEta(i, totalTasks)}` : '';
 
-        // Step 1: Generate topic from keyword phrase
+        // Step 1: Generate topic from keyword phrase (with deduplication)
         let topic = phrase;
         try {
             const topicData = await apiPost('/api/generate-topic', {
                 keyword: phrase,
                 language: settings.language,
+                model: settings.model,
+                avoid_titles: generatedTitles,
             });
             topic = topicData.topic || phrase;
         } catch (e) {
             // Fallback: use phrase as topic
         }
 
-        document.getElementById('bulk-progress-text').textContent = `[${i + 1}/${totalTasks}] Generuje artykul: "${topic}"...`;
+        document.getElementById('bulk-progress-step').textContent = `Krok 2/6: Generuje artykul "${topic.substring(0, 50)}${topic.length > 50 ? '...' : ''}"...`;
 
         // Per-article scheduled date
         let scheduledDate = '';
@@ -1774,12 +1791,15 @@ async function runBulkGeneration() {
                 scheduled_date: scheduledDate,
             });
 
-            const dateInfo = scheduledDate ? ` | Zaplanowano: ${scheduledDate.replace('T', ' ')}` : '';
+            articleTimes.push(Date.now() - articleStart);
+            generatedTitles.push(result.title);
+
+            const dateInfo = scheduledDate ? ` | ${scheduledDate.replace('T', ' ').substring(0, 16)}` : '';
             document.getElementById('bulk-results-list').innerHTML += `
                 <div class="list-item" style="margin-bottom:6px">
                     <div class="list-item-info">
                         <p>${escapeHtml(result.title)}</p>
-                        <p>Fraza: "${escapeHtml(phrase)}" | ${result.published ? 'Opublikowano' : 'Zapisano'}${dateInfo} ${result.wp_link ? `| <a href="${result.wp_link}" target="_blank">Link</a>` : ''}</p>
+                        <p style="font-size:11px">Fraza: "${escapeHtml(phrase)}" | ${result.published ? 'Opublikowano' : 'Zapisano'}${dateInfo} ${result.wp_link ? `| <a href="${result.wp_link}" target="_blank">Link</a>` : ''}</p>
                     </div>
                     <span class="status-set">OK</span>
                 </div>
@@ -1799,9 +1819,14 @@ async function runBulkGeneration() {
 
     document.getElementById('bulk-progress-bar').style.width = '100%';
     const done = document.querySelectorAll('#bulk-results-list .status-set').length;
+    const errors = document.querySelectorAll('#bulk-results-list .status-unset').length;
+    const totalTime = Math.round((Date.now() - bulkStartTime) / 1000);
+    const timeStr = totalTime >= 60 ? `${Math.floor(totalTime / 60)} min ${totalTime % 60}s` : `${totalTime}s`;
+    document.getElementById('bulk-progress-eta').textContent = `Czas: ${timeStr}`;
+    document.getElementById('bulk-progress-step').textContent = '';
     document.getElementById('bulk-progress-text').textContent = bulkCancelled
-        ? `Anulowano. Wygenerowano ${done} z ${totalTasks}.`
-        : `Gotowe! Wygenerowano ${done} artykulow z ${phrases.length} fraz.`;
+        ? `Anulowano. ${done} OK, ${errors} bledow z ${totalTasks} artykulow.`
+        : `Gotowe! ${done} artykulow wygenerowanych z ${phrases.length} fraz.${errors ? ` ${errors} bledow.` : ''}`;
     document.getElementById('btn-bulk-run').disabled = false;
     document.getElementById('btn-bulk-cancel').classList.add('hidden');
 }
