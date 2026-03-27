@@ -370,6 +370,24 @@ function getFormData() {
     };
 }
 
+function getEnrichments(prefix) {
+    const enrichments = [];
+    const el = (id) => document.getElementById(prefix + id);
+    if (el('-enrich-lists') && el('-enrich-lists').checked)
+        enrichments.push('lists:' + (el('-enrich-lists-count')?.value || '2-4'));
+    if (el('-enrich-quotes') && el('-enrich-quotes').checked)
+        enrichments.push('quotes:' + (el('-enrich-quotes-count')?.value || '1'));
+    if (el('-enrich-faq') && el('-enrich-faq').checked)
+        enrichments.push('faq:' + (el('-enrich-faq-count')?.value || '3'));
+    if (el('-enrich-table') && el('-enrich-table').checked)
+        enrichments.push('table');
+    if (el('-enrich-tips') && el('-enrich-tips').checked)
+        enrichments.push('tips:' + (el('-enrich-tips-count')?.value || '3'));
+    if (el('-enrich-summary') && el('-enrich-summary').checked)
+        enrichments.push('summary');
+    return enrichments;
+}
+
 // --- Step 1 -> 2: Generate Outline ---
 async function generateOutline() {
     const form = getFormData();
@@ -454,6 +472,24 @@ async function generateArticle() {
     if (!outline.sections.length) return alert('Dodaj przynajmniej jedna sekcje');
 
     const form = getFormData();
+    const wizEnrichments = getEnrichments('wiz');
+    let enrichNotes = form.additional_notes;
+    if (wizEnrichments.length) {
+        const enrichMap = {
+            lists: (c) => `Dodaj ${c} list punktowanych/numerowanych`,
+            quotes: (c) => `Dodaj ${c} cytat(y/ow) ze zrodel (TYLKO prawdziwe, z podanych materialow). Uzyj <blockquote>`,
+            faq: (c) => `Dodaj sekcje FAQ z ${c} pytaniami`,
+            table: () => 'Dodaj tabele porownawcza HTML',
+            tips: (c) => `Dodaj ${c} praktycznych wskazowek (Tip:)`,
+            summary: () => 'Dodaj TL;DR na koncu',
+        };
+        const parts = wizEnrichments.map(e => {
+            const [t, c] = e.split(':');
+            return enrichMap[t] ? enrichMap[t](c || '') : '';
+        }).filter(Boolean);
+        enrichNotes = (enrichNotes + '\n\nWZBOGACENIA: ' + parts.join('. ') + '. Cytaty TYLKO z podanych zrodel - 0 halucynacji.').trim();
+    }
+
     showLoading('Generuje tresc artykulu... To moze potrwac chwile.');
     try {
         const data = await apiPost('/api/generate-content', {
@@ -461,7 +497,7 @@ async function generateArticle() {
             source_urls: form.source_urls,
             file_texts: getFileTexts(),
             style_description: form.style_description,
-            additional_notes: form.additional_notes,
+            additional_notes: enrichNotes,
             language: form.language,
             model: form.model,
             target_length: form.target_length,
@@ -1785,9 +1821,20 @@ async function runBulkGeneration() {
     const tagsMin = parseInt(tagRange[0]) || 4;
     const tagsMax = parseInt(tagRange[1]) || 8;
 
-    // Enrichments
-    const enrichSel = document.getElementById('bulk-enrichments');
-    const enrichments = Array.from(enrichSel.selectedOptions).map(o => o.value);
+    // Enrichments - build "type:count" strings from checkboxes
+    const enrichments = [];
+    if (document.getElementById('bulk-enrich-lists').checked)
+        enrichments.push('lists:' + document.getElementById('bulk-enrich-lists-count').value);
+    if (document.getElementById('bulk-enrich-quotes').checked)
+        enrichments.push('quotes:' + document.getElementById('bulk-enrich-quotes-count').value);
+    if (document.getElementById('bulk-enrich-faq').checked)
+        enrichments.push('faq:' + document.getElementById('bulk-enrich-faq-count').value);
+    if (document.getElementById('bulk-enrich-table').checked)
+        enrichments.push('table');
+    if (document.getElementById('bulk-enrich-tips').checked)
+        enrichments.push('tips:' + document.getElementById('bulk-enrich-tips-count').value);
+    if (document.getElementById('bulk-enrich-summary').checked)
+        enrichments.push('summary');
 
     // Scheduling
     const publishStatus = document.getElementById('bulk-publish-status').value;

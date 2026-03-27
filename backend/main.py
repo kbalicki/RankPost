@@ -756,14 +756,28 @@ async def generate_topic_from_keyword(req: GenerateTopicRequest):
 
     avoid_block = ""
     if req.avoid_titles:
-        avoid_block = "\n\nTYTULY JUZ UYTE (wymysl INNY, unikalny tytul, nie powtarzaj):\n" + "\n".join(f"- {t}" for t in req.avoid_titles)
+        avoid_block = "\n\nTYTULY JUZ UZYTE (ZAKAZANE - nie powtarzaj ich ani podobnych):\n" + "\n".join(f"- {t}" for t in req.avoid_titles)
+        avoid_block += "\n\nMUSISZ uzyc ZUPELNIE INNEJ formy tytulu niz powyzsze. Jesli wczesniej byla lista (np. '12 miejsc...'), teraz uzyj pytania, poradnika, porownania lub innej formy. NIE uzywaj tej samej struktury zdania."
+
+    # Rotate title formulas to force variety
+    formulas = [
+        "pytanie (np. 'Czy wiesz, ze...?', 'Jak...?', 'Dlaczego...?')",
+        "lista z nieoczywista liczba (np. '7 sekretow...', '5 bledow, ktore...')",
+        "poradnik/instrukcja (np. 'Kompletny przewodnik po...', 'Krok po kroku:')",
+        "prowokacja/mit (np. 'Mit: ... - prawda jest inna', 'Zapominasz o tym planujac...')",
+        "porownanie/ranking (np. '... vs ... - co wybrac?', 'Ranking najlepszych...')",
+        "osobiste doswiadczenie (np. 'Przetestowalem ... - oto wnioski', 'Moja historia z...')",
+    ]
+    formula_idx = len(req.avoid_titles) % len(formulas)
+    forced_formula = formulas[formula_idx]
 
     prompt = f"""Wymysl chwytliwy, SEO-friendly tytul artykulu blogowego w jezyku {lang_label} na podstawie frazy kluczowej: "{req.keyword}"
 
+WYMAGANA FORMA TYTULU: {forced_formula}
+
 Zasady:
-- Tytul powinien byc naturalny, unikalny i angazujacy
+- Tytul MUSI byc unikalny - calkowicie inny niz poprzednie
 - Zawieraj fraze kluczowa lub jej odmiane
-- Uzyj zaskakujacej formy (pytanie, lista, poradnik, porownanie, mit vs fakt, itp.)
 - Dlugosc: 40-70 znakow
 - Odpowiedz TYLKO tytulem, bez cudzyslowow i dodatkowych znakow{avoid_block}"""
 
@@ -796,17 +810,30 @@ async def generate_single(req: BulkItemRequest):
     settings["tags_min"] = req.tags_min
     settings["tags_max"] = req.tags_max
 
-    # Build enrichment instructions for content generation
-    enrichment_map = {
-        "faq": "Dodaj sekcje FAQ z 3-5 pytaniami i odpowiedziami (uzyj formatu <h3>Pytanie?</h3><p>Odpowiedz</p>)",
-        "pros-cons": "Dodaj sekcje z zaletami i wadami w formie dwoch list (<h3>Zalety</h3><ul>...</ul><h3>Wady</h3><ul>...</ul>)",
-        "checklist": "Dodaj praktyczna checkliste lub liste krokow (numerowana lista <ol> z konkretnymi punktami do wykonania)",
-        "stats": "Wplec 3-5 konkretnych statystyk, danych liczbowych lub procentow w tresci artykulu (moga byc przyblizone/orientacyjne)",
-    }
-    enrichment_notes = [enrichment_map[e] for e in req.enrichments if e in enrichment_map]
-    if enrichment_notes:
-        extra = "WZBOGACENIA TRESCI (dodaj te elementy w artykule):\n" + "\n".join(f"- {n}" for n in enrichment_notes)
-        settings["additional_notes"] = (settings.get("additional_notes", "") + "\n\n" + extra).strip()
+    # Build enrichment instructions from detailed enrichments list
+    # enrichments come as strings like "lists:2-4", "quotes:2", "faq:5", "table", "tips:3", "summary"
+    if req.enrichments:
+        enrich_parts = []
+        for e in req.enrichments:
+            parts = e.split(":", 1)
+            etype = parts[0]
+            ecount = parts[1] if len(parts) > 1 else ""
+            if etype == "lists":
+                enrich_parts.append(f"Dodaj {ecount or '2-4'} list punktowanych lub numerowanych z konkretnymi informacjami")
+            elif etype == "quotes":
+                enrich_parts.append(f"Dodaj {ecount or '1'} cytat(y/ow) ze zrodel - TYLKO prawdziwe cytaty z podanych materialow zrodlowych. Jesli brak zrodel, POMIN cytaty. Uzyj <blockquote>")
+            elif etype == "faq":
+                enrich_parts.append(f"Dodaj sekcje FAQ z {ecount or '3'} pytaniami i odpowiedziami (<h3>Pytanie?</h3><p>Odpowiedz</p>)")
+            elif etype == "table":
+                enrich_parts.append("Dodaj tabele porownawcza HTML (<table>) z konkretnymi danymi")
+            elif etype == "tips":
+                enrich_parts.append(f"Dodaj {ecount or '3'} praktycznych wskazowek/tipow wyroznionych w tresci (np. <strong>Tip:</strong> lub w osobnej liscie)")
+            elif etype == "summary":
+                enrich_parts.append("Dodaj na koncu sekcje TL;DR - podsumowanie w 3-5 punktach")
+        if enrich_parts:
+            extra = "WZBOGACENIA TRESCI (OBOWIAZKOWE - dodaj te elementy w artykule):\n" + "\n".join(f"- {n}" for n in enrich_parts)
+            extra += "\n\nWAZNE: Cytaty i dane TYLKO z podanych zrodel. Jesli nie ma zrodel, nie wymyslaj cytatow - uzyj tylko wlasnych sformlowan."
+            settings["additional_notes"] = (settings.get("additional_notes", "") + "\n\n" + extra).strip()
 
     # 1. Outline
     logger.info(f"  Step 1/7: Generating outline...")

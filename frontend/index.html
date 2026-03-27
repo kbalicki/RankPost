@@ -194,6 +194,35 @@
                     </div>
                 </div>
 
+                <div class="card">
+                    <div class="card-title">Wzbogacenia tresci</div>
+                    <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Cytaty i dane tylko z podanych zrodel (0 halucynacji).</p>
+                    <div class="form-grid">
+                        <div>
+                            <label class="check-label"><input id="wiz-enrich-lists" type="checkbox" checked> Listy punktowane</label>
+                            <span style="margin-left:8px"><select id="wiz-enrich-lists-count" class="input" style="width:70px;display:inline-block;font-size:12px;padding:3px 6px"><option value="1-2">1-2</option><option value="2-4" selected>2-4</option><option value="4-6">4-6</option></select></span>
+                        </div>
+                        <div>
+                            <label class="check-label"><input id="wiz-enrich-quotes" type="checkbox" checked> Cytaty ze zrodel</label>
+                            <span style="margin-left:8px"><select id="wiz-enrich-quotes-count" class="input" style="width:70px;display:inline-block;font-size:12px;padding:3px 6px"><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select></span>
+                        </div>
+                        <div>
+                            <label class="check-label"><input id="wiz-enrich-faq" type="checkbox"> FAQ</label>
+                            <span style="margin-left:8px"><select id="wiz-enrich-faq-count" class="input" style="width:70px;display:inline-block;font-size:12px;padding:3px 6px"><option value="3" selected>3</option><option value="5">5</option><option value="7">7</option></select></span>
+                        </div>
+                        <div>
+                            <label class="check-label"><input id="wiz-enrich-table" type="checkbox"> Tabela porownawcza</label>
+                        </div>
+                        <div>
+                            <label class="check-label"><input id="wiz-enrich-tips" type="checkbox" checked> Wskazowki/tipy</label>
+                            <span style="margin-left:8px"><select id="wiz-enrich-tips-count" class="input" style="width:70px;display:inline-block;font-size:12px;padding:3px 6px"><option value="3" selected>3</option><option value="5">5</option><option value="7">7</option></select></span>
+                        </div>
+                        <div>
+                            <label class="check-label"><input id="wiz-enrich-summary" type="checkbox"> TL;DR</label>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="btn-row">
                     <button onclick="generateOutline()" id="btn-outline" class="btn-primary">Generuj outline</button>
                 </div>
@@ -629,16 +658,6 @@
                             <option value="6-10">Duzo (6-10)</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="label">Wzbogacenia tresci</label>
-                        <select id="bulk-enrichments" class="input" multiple size="4" style="height:auto">
-                            <option value="faq" selected>FAQ (pytania i odpowiedzi)</option>
-                            <option value="pros-cons">Zalety i wady (tabela)</option>
-                            <option value="checklist" selected>Checklista / lista krokow</option>
-                            <option value="stats">Statystyki i dane liczbowe</option>
-                        </select>
-                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px">Ctrl+klik aby wybrac wiele</p>
-                    </div>
                     <div class="full">
                         <label class="label">Dodatkowe uwagi</label>
                         <input id="bulk-additional-notes" type="text" class="input" placeholder="Instrukcje dla AI...">
@@ -653,6 +672,63 @@
                     <div id="bulk-image-style-row" class="hidden">
                         <label class="label">Styl zdjecia</label>
                         <select id="bulk-image-style" class="input"><option value="">-- ladowanie --</option></select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Wzbogacenia tresci</div>
+                <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Wybierz elementy uatrakcyjniajace artykul. Cytaty i dane tylko z podanych zrodel (0 halucynacji).</p>
+                <div class="form-grid">
+                    <div>
+                        <label class="check-label"><input id="bulk-enrich-lists" type="checkbox" checked> Listy punktowane/numerowane</label>
+                        <div style="margin-left:20px;margin-top:4px">
+                            <label class="label" style="display:inline;font-size:11px">Ile: </label>
+                            <select id="bulk-enrich-lists-count" class="input" style="width:80px;display:inline-block;font-size:12px;padding:3px 6px">
+                                <option value="1-2">1-2</option>
+                                <option value="2-4" selected>2-4</option>
+                                <option value="4-6">4-6</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="check-label"><input id="bulk-enrich-quotes" type="checkbox" checked> Cytaty ze zrodel</label>
+                        <div style="margin-left:20px;margin-top:4px">
+                            <label class="label" style="display:inline;font-size:11px">Ile: </label>
+                            <select id="bulk-enrich-quotes-count" class="input" style="width:80px;display:inline-block;font-size:12px;padding:3px 6px">
+                                <option value="1" selected>1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="check-label"><input id="bulk-enrich-faq" type="checkbox"> Sekcja FAQ</label>
+                        <div style="margin-left:20px;margin-top:4px">
+                            <label class="label" style="display:inline;font-size:11px">Pytan: </label>
+                            <select id="bulk-enrich-faq-count" class="input" style="width:80px;display:inline-block;font-size:12px;padding:3px 6px">
+                                <option value="3" selected>3</option>
+                                <option value="5">5</option>
+                                <option value="7">7</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="check-label"><input id="bulk-enrich-table" type="checkbox"> Tabela porownawcza</label>
+                    </div>
+                    <div>
+                        <label class="check-label"><input id="bulk-enrich-tips" type="checkbox" checked> Praktyczne wskazowki/tipy</label>
+                        <div style="margin-left:20px;margin-top:4px">
+                            <label class="label" style="display:inline;font-size:11px">Ile: </label>
+                            <select id="bulk-enrich-tips-count" class="input" style="width:80px;display:inline-block;font-size:12px;padding:3px 6px">
+                                <option value="3" selected>3</option>
+                                <option value="5">5</option>
+                                <option value="7">7</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="check-label"><input id="bulk-enrich-summary" type="checkbox"> Podsumowanie w punktach (TL;DR)</label>
                     </div>
                 </div>
             </div>
