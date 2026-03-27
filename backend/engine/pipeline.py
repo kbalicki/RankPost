@@ -1,7 +1,10 @@
 import re
 import json
+import logging
 import httpx
 from backend.scraper.scraper import scrape_multiple
+
+logger = logging.getLogger("rankpost")
 
 
 def html_to_gutenberg(html: str) -> str:
@@ -188,7 +191,10 @@ async def step_publish(
     if featured_media_id:
         post_data["featured_media"] = featured_media_id
 
+    logger.info(f"  Publishing to WP: site={wp_site} status={publish_status} seo_plugin={seo_plugin} date={scheduled_date or 'now'}")
+    logger.debug(f"  Post data keys: {list(post_data.keys())}")
     result = await create_post(wp_site, post_data)
+    logger.info(f"  Published: id={result.get('id')} status={result.get('status')} link={result.get('link')}")
     return result
 
 

@@ -1824,20 +1824,29 @@ async function runBulkGeneration() {
     const tagsMin = parseInt(tagRange[0]) || 4;
     const tagsMax = parseInt(tagRange[1]) || 8;
 
-    // Enrichments - build "type:count" strings from checkboxes
-    const enrichments = [];
-    if (document.getElementById('bulk-enrich-lists').checked)
-        enrichments.push('lists:' + document.getElementById('bulk-enrich-lists-count').value);
-    if (document.getElementById('bulk-enrich-quotes').checked)
-        enrichments.push('quotes:' + document.getElementById('bulk-enrich-quotes-count').value);
-    if (document.getElementById('bulk-enrich-faq').checked)
-        enrichments.push('faq:' + document.getElementById('bulk-enrich-faq-count').value);
-    if (document.getElementById('bulk-enrich-table').checked)
-        enrichments.push('table');
-    if (document.getElementById('bulk-enrich-tips').checked)
-        enrichments.push('tips:' + document.getElementById('bulk-enrich-tips-count').value);
-    if (document.getElementById('bulk-enrich-summary').checked)
-        enrichments.push('summary');
+    // Enrichments - build "type:count" strings with random value from range
+    function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+    function enrichRange(prefix) {
+        const mn = parseInt(document.getElementById(prefix + '-min').value) || 1;
+        const mx = parseInt(document.getElementById(prefix + '-max').value) || mn;
+        return randInt(mn, mx);
+    }
+    function buildEnrichments() {
+        const e = [];
+        if (document.getElementById('bulk-enrich-lists').checked)
+            e.push('lists:' + enrichRange('bulk-enrich-lists'));
+        if (document.getElementById('bulk-enrich-quotes').checked)
+            e.push('quotes:' + enrichRange('bulk-enrich-quotes'));
+        if (document.getElementById('bulk-enrich-faq').checked)
+            e.push('faq:' + enrichRange('bulk-enrich-faq'));
+        if (document.getElementById('bulk-enrich-table').checked)
+            e.push('table');
+        if (document.getElementById('bulk-enrich-tips').checked)
+            e.push('tips:' + enrichRange('bulk-enrich-tips'));
+        if (document.getElementById('bulk-enrich-summary').checked)
+            e.push('summary');
+        return e;
+    }
 
     // Scheduling
     const publishStatus = document.getElementById('bulk-publish-status').value;
@@ -1857,7 +1866,7 @@ async function runBulkGeneration() {
         tags_max: tagsMax,
         cats_min: parseInt(document.getElementById('bulk-cats-min').value) || 1,
         cats_max: parseInt(document.getElementById('bulk-cats-max').value) || 3,
-        enrichments: enrichments,
+        enrichments: [],  // built per-article via buildEnrichments()
         image_style: document.getElementById('bulk-image-style').value,
         wp_site: document.getElementById('bulk-wp-site').value,
         publish_status: publishStatus,
@@ -1932,6 +1941,7 @@ async function runBulkGeneration() {
                 topic,
                 ...settings,
                 scheduled_date: scheduledDate,
+                enrichments: buildEnrichments(),
             });
 
             articleTimes.push(Date.now() - articleStart);

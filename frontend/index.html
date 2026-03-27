@@ -694,39 +694,30 @@
 
             <div class="card">
                 <div class="card-title">Wzbogacenia tresci</div>
-                <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Wybierz elementy uatrakcyjniajace artykul. Cytaty i dane tylko z podanych zrodel (0 halucynacji).</p>
+                <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Zaznaczone elementy beda losowo dodawane do artykulow (ilosc losowa z zakresu min-max). Cytaty tylko z podanych zrodel.</p>
                 <div class="form-grid">
                     <div>
                         <label class="check-label"><input id="bulk-enrich-lists" type="checkbox" checked> Listy punktowane/numerowane</label>
-                        <div style="margin-left:20px;margin-top:4px">
-                            <label class="label" style="display:inline;font-size:11px">Ile: </label>
-                            <select id="bulk-enrich-lists-count" class="input" style="width:80px;display:inline-block;font-size:12px;padding:3px 6px">
-                                <option value="1-2">1-2</option>
-                                <option value="2-4" selected>2-4</option>
-                                <option value="4-6">4-6</option>
-                            </select>
+                        <div style="margin-left:20px;margin-top:4px;display:flex;gap:4px;align-items:center">
+                            <input id="bulk-enrich-lists-min" type="number" value="1" min="0" max="10" class="input" style="width:45px;font-size:12px;padding:3px 6px">
+                            <span style="font-size:11px;color:var(--text-muted)">-</span>
+                            <input id="bulk-enrich-lists-max" type="number" value="4" min="1" max="10" class="input" style="width:45px;font-size:12px;padding:3px 6px">
                         </div>
                     </div>
                     <div>
                         <label class="check-label"><input id="bulk-enrich-quotes" type="checkbox" checked> Cytaty ze zrodel</label>
-                        <div style="margin-left:20px;margin-top:4px">
-                            <label class="label" style="display:inline;font-size:11px">Ile: </label>
-                            <select id="bulk-enrich-quotes-count" class="input" style="width:80px;display:inline-block;font-size:12px;padding:3px 6px">
-                                <option value="1" selected>1</option>
-                                <option value="2">2</option>
-                                <option value="3">3</option>
-                            </select>
+                        <div style="margin-left:20px;margin-top:4px;display:flex;gap:4px;align-items:center">
+                            <input id="bulk-enrich-quotes-min" type="number" value="1" min="0" max="5" class="input" style="width:45px;font-size:12px;padding:3px 6px">
+                            <span style="font-size:11px;color:var(--text-muted)">-</span>
+                            <input id="bulk-enrich-quotes-max" type="number" value="3" min="1" max="5" class="input" style="width:45px;font-size:12px;padding:3px 6px">
                         </div>
                     </div>
                     <div>
-                        <label class="check-label"><input id="bulk-enrich-faq" type="checkbox"> Sekcja FAQ</label>
-                        <div style="margin-left:20px;margin-top:4px">
-                            <label class="label" style="display:inline;font-size:11px">Pytan: </label>
-                            <select id="bulk-enrich-faq-count" class="input" style="width:80px;display:inline-block;font-size:12px;padding:3px 6px">
-                                <option value="3" selected>3</option>
-                                <option value="5">5</option>
-                                <option value="7">7</option>
-                            </select>
+                        <label class="check-label"><input id="bulk-enrich-faq" type="checkbox" checked> Sekcja FAQ</label>
+                        <div style="margin-left:20px;margin-top:4px;display:flex;gap:4px;align-items:center">
+                            <input id="bulk-enrich-faq-min" type="number" value="3" min="1" max="10" class="input" style="width:45px;font-size:12px;padding:3px 6px">
+                            <span style="font-size:11px;color:var(--text-muted)">-</span>
+                            <input id="bulk-enrich-faq-max" type="number" value="7" min="1" max="10" class="input" style="width:45px;font-size:12px;padding:3px 6px">
                         </div>
                     </div>
                     <div>
@@ -734,13 +725,11 @@
                     </div>
                     <div>
                         <label class="check-label"><input id="bulk-enrich-tips" type="checkbox" checked> Praktyczne wskazowki/tipy</label>
-                        <div style="margin-left:20px;margin-top:4px">
-                            <label class="label" style="display:inline;font-size:11px">Ile: </label>
-                            <select id="bulk-enrich-tips-count" class="input" style="width:80px;display:inline-block;font-size:12px;padding:3px 6px">
-                                <option value="3" selected>3</option>
-                                <option value="5">5</option>
-                                <option value="7">7</option>
-                            </select>
+                        <div style="margin-left:20px;margin-top:4px;display:flex;gap:4px;align-items:center">
+                            <input id="bulk-enrich-tips-min" type="number" value="3" min="1" max="10" class="input" style="width:45px;font-size:12px;padding:3px 6px">
+                            <span style="font-size:11px;color:var(--text-muted)">-</span>
+                            <input id="bulk-enrich-tips-max" type="number" value="7" min="1" max="10" class="input" style="width:45px;font-size:12px;padding:3px 6px">
+                        </div>
                         </div>
                     </div>
                     <div>

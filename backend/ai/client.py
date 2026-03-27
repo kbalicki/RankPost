@@ -1,12 +1,22 @@
 import asyncio
+import time
+import logging
 import anthropic
 import openai
 from backend.database import get_setting
 
+logger = logging.getLogger("rankpost")
+
 
 async def generate_text(prompt: str, system: str = "", model: str = "claude-cli", max_tokens: int = 4096) -> str:
+    _t = time.time()
+    prompt_preview = prompt[:80].replace('\n', ' ')
+    logger.debug(f"    AI call: model={model} max_tokens={max_tokens} prompt='{prompt_preview}...'")
+
     if model == "claude-cli":
-        return await _generate_claude_cli(prompt, system, max_tokens)
+        result = await _generate_claude_cli(prompt, system, max_tokens)
+        logger.debug(f"    AI done: {len(result)} chars in {time.time()-_t:.1f}s")
+        return result
 
     elif model.startswith("claude"):
         api_key = await get_setting("anthropic_api_key")
@@ -19,7 +29,9 @@ async def generate_text(prompt: str, system: str = "", model: str = "claude-cli"
         if system:
             kwargs["system"] = system
         response = await asyncio.to_thread(client.messages.create, **kwargs)
-        return response.content[0].text
+        result = response.content[0].text
+        logger.debug(f"    AI done: {len(result)} chars in {time.time()-_t:.1f}s (claude-api)")
+        return result
 
     elif model.startswith("gpt"):
         api_key = await get_setting("openai_api_key")
@@ -34,7 +46,9 @@ async def generate_text(prompt: str, system: str = "", model: str = "claude-cli"
         response = await asyncio.to_thread(
             client.chat.completions.create, model=model_id, messages=messages, max_tokens=max_tokens
         )
-        return response.choices[0].message.content
+        result = response.choices[0].message.content
+        logger.debug(f"    AI done: {len(result)} chars in {time.time()-_t:.1f}s (gpt)")
+        return result
 
     raise ValueError(f"Nieznany model: {model}")
 

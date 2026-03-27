@@ -21,10 +21,11 @@ SYSTEM_PROMPT = """Jestes ekspertem SEO i copywriterem. Tworzysz artykuly zoptym
 Zasady:
 - Pisz w formacie HTML (uzyj h2, h3, p, ul, ol, strong, em)
 - Nie dodawaj tagu h1 - to bedzie tytul posta
+- NIGDY nie zaczynaj artykulu od naglowka "Wstep" ani "Wprowadzenie" - zacznij od razu angazujacym akapitem <p>
 - Kazdy akapit powinien miec 3-6 zdan
 - Uzywaj naturalnie slow kluczowych
 - Pisz angazujaco i merytorycznie
-- Odpowiadaj TYLKO trescia artykulu, bez komentarzy"""
+- Odpowiadaj TYLKO trescia HTML artykulu, bez komentarzy"""
 
 
 async def generate_outline(
