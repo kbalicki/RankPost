@@ -67,9 +67,9 @@ async def step_tags(title: str, content: str, settings: dict) -> list[str]:
     )
 
 
-async def step_suggest_categories(title: str, content: str, wp_site: str, model: str) -> tuple[list[int], list[dict]]:
+async def step_suggest_categories(title: str, content: str, wp_site: str, model: str, cats_min: int = 1, cats_max: int = 3) -> tuple[list[int], list[dict]]:
     categories = await get_categories(wp_site)
-    suggested_ids = await suggest_categories(title, content, categories, model)
+    suggested_ids = await suggest_categories(title, content, categories, model, cats_min=cats_min, cats_max=cats_max)
     return suggested_ids, categories
 
 

@@ -86,6 +86,8 @@ class CategoriesRequest(BaseModel):
     content: str
     wp_site: str
     model: str = "claude"
+    cats_min: int = 1
+    cats_max: int = 3
 
 class PublishRequest(BaseModel):
     wp_site: str
@@ -310,7 +312,7 @@ async def tags(req: TagsRequest):
 
 @app.post("/api/suggest-categories")
 async def suggest_cats(req: CategoriesRequest):
-    suggested_ids, all_cats = await step_suggest_categories(req.title, req.content, req.wp_site, req.model)
+    suggested_ids, all_cats = await step_suggest_categories(req.title, req.content, req.wp_site, req.model, cats_min=req.cats_min, cats_max=req.cats_max)
     return {"suggested_ids": suggested_ids, "all_categories": all_cats}
 
 
@@ -685,6 +687,8 @@ class BulkItemRequest(BaseModel):
     tags_min: int = 4
     tags_max: int = 8
     enrichments: list[str] = []
+    cats_min: int = 1
+    cats_max: int = 3
 
 
 @app.post("/api/internal-links")
@@ -878,10 +882,13 @@ async def generate_single(req: BulkItemRequest):
     category_ids = []
     if req.wp_site:
         try:
+            logger.info(f"  Step 6/8: Suggesting {req.cats_min}-{req.cats_max} categories...")
             suggested_ids, _ = await step_suggest_categories(
-                outline.get("title", req.topic), content, req.wp_site, req.model
+                outline.get("title", req.topic), content, req.wp_site, req.model,
+                cats_min=req.cats_min, cats_max=req.cats_max,
             )
             category_ids = suggested_ids
+            logger.info(f"  Step 6/8: Categories: {category_ids}")
         except Exception:
             pass
 

@@ -178,6 +178,14 @@
                             <label class="label">Tagi do</label>
                             <input id="tags-max" type="number" value="8" min="1" max="30" class="input">
                         </div>
+                        <div>
+                            <label class="label">Kategorie od</label>
+                            <input id="cats-min" type="number" value="1" min="1" max="5" class="input">
+                        </div>
+                        <div>
+                            <label class="label">Kategorie do</label>
+                            <input id="cats-max" type="number" value="3" min="1" max="10" class="input">
+                        </div>
                         <div class="full">
                             <div class="check-row">
                                 <label class="check-label"><input id="include-intro" type="checkbox" checked> Wstep</label>
@@ -657,6 +665,14 @@
                             <option value="4-8" selected>Srednio (4-8)</option>
                             <option value="6-10">Duzo (6-10)</option>
                         </select>
+                    </div>
+                    <div>
+                        <label class="label">Kategorie (zakres)</label>
+                        <div style="display:flex;gap:6px;align-items:center">
+                            <input id="bulk-cats-min" type="number" value="1" min="1" max="5" class="input" style="width:55px">
+                            <span style="color:var(--text-muted)">-</span>
+                            <input id="bulk-cats-max" type="number" value="3" min="1" max="10" class="input" style="width:55px">
+                        </div>
                     </div>
                     <div class="full">
                         <label class="label">Dodatkowe uwagi</label>

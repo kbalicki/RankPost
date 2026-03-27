@@ -367,6 +367,8 @@ function getFormData() {
         tags_min: parseInt(document.getElementById('tags-min').value) || 3,
         tags_max: parseInt(document.getElementById('tags-max').value) || 8,
         generate_seo: document.getElementById('generate-seo').checked,
+        cats_min: parseInt(document.getElementById('cats-min').value) || 1,
+        cats_max: parseInt(document.getElementById('cats-max').value) || 3,
     };
 }
 
@@ -630,7 +632,7 @@ async function goToSeoStep() {
         }
 
         if (form.wp_site) {
-            promises.push(apiPost('/api/suggest-categories', { title, content, wp_site: form.wp_site, model: form.model }));
+            promises.push(apiPost('/api/suggest-categories', { title, content, wp_site: form.wp_site, model: form.model, cats_min: form.cats_min, cats_max: form.cats_max }));
         } else {
             promises.push(Promise.resolve({ suggested_ids: [], all_categories: [] }));
         }
@@ -1852,6 +1854,8 @@ async function runBulkGeneration() {
         generate_image: document.getElementById('bulk-generate-image').checked,
         tags_min: tagsMin,
         tags_max: tagsMax,
+        cats_min: parseInt(document.getElementById('bulk-cats-min').value) || 1,
+        cats_max: parseInt(document.getElementById('bulk-cats-max').value) || 3,
         enrichments: enrichments,
         image_style: document.getElementById('bulk-image-style').value,
         wp_site: document.getElementById('bulk-wp-site').value,

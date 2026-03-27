@@ -170,7 +170,7 @@ Odpowiedz TYLKO jako JSON array stringow, np: ["tag1", "tag2", "tag3"]"""
     return _parse_json_response(result, fallback=[])
 
 
-async def suggest_categories(title: str, content_preview: str, available_categories: list[dict], model: str) -> list[int]:
+async def suggest_categories(title: str, content_preview: str, available_categories: list[dict], model: str, cats_min: int = 1, cats_max: int = 3) -> list[int]:
     cats_list = ", ".join(f"{c['id']}:{c['name']}" for c in available_categories)
     prompt = f"""Wybierz najlepsze kategorie dla tego artykulu.
 
@@ -179,7 +179,7 @@ Fragment: {content_preview[:1000]}
 
 Dostepne kategorie (id:nazwa): {cats_list}
 
-Wybierz 1-3 najbardziej pasujace kategorie.
+Wybierz od {cats_min} do {cats_max} najbardziej pasujacych kategorii.
 Odpowiedz TYLKO jako JSON array z ID kategorii, np: [1, 5]"""
 
     result = await generate_text(prompt, model=model, max_tokens=256)
