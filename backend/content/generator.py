@@ -110,33 +110,55 @@ Wymagania:
 
 Odpowiedz TYLKO trescia HTML artykulu, bez zadnych komentarzy."""
 
-    return await generate_text(prompt, system=SYSTEM_PROMPT, model=model, max_tokens=max(4096, target_length * 3))
+    result = await generate_text(prompt, system=SYSTEM_PROMPT, model=model, max_tokens=max(4096, target_length * 3))
+    return result.replace("—", "-").replace("–", "-")
 
 
 async def humanize_content(content: str, language: str = "pl", model: str = "claude") -> str:
-    """Rewrite AI-generated content to sound naturally human-written."""
+    """Rewrite AI-generated content to sound like a professional human content editor."""
     lang_label = "polskim" if language == "pl" else "angielskim"
-    prompt = f"""Przepisz ponizszy artykul HTML w jezyku {lang_label}, aby brzmial naturalnie i ludzko.
+    prompt = f"""Jestes doswiadczonym redaktorem i content editorem z 10-letnim stazem w branzy, o ktorej jest ten artykul. Przepisz ponizszy artykul HTML w jezyku {lang_label} tak, zeby brzmial jak napisany przez czlowieka-eksperta, NIE przez AI.
 
-Zasady:
-- Usun typowe wzorce AI: "W dzisiejszym swiecie...", "Warto zauwazyc, ze...", "Podsumowujac..."
-- Dodaj osobiste zwroty: "Sprawdzilem to sam", "Z mojego doswiadczenia", "Szczerze mowiac"
-- Uzywaj roznej dlugosci zdan - krotkie, srednie i dlugie na przemian
-- Wstaw potoczne wyrazenia i idiomy tam gdzie pasuja
-- Nie uzywaj perfekcyjnych przejsc miedzy akapitami - ludzie tak nie pisza
-- Zachowaj wszystkie fakty, linki, naglowki i strukture HTML
-- Czasem zacznij zdanie od "I", "Ale", "Bo" - naturalny jezyk
-- Unikaj powtarzania tych samych przymiotnikow
-- Zachowaj ten sam format HTML (h2, h3, p, ul, ol, strong, em, a)
-- NIE dodawaj nowych linkow ani nie usuwaj istniejacych
-- NIE zmieniaj naglowkow H2/H3
+ZAKAZANE WZORCE AI (usun WSZYSTKIE):
+- "W dzisiejszym swiecie/czasach..." "Warto zauwazyc/podkreslic..." "Podsumowujac..."
+- "Nalezy podkreslic, ze..." "Nie ulega watpliwosci..." "Kluczowym aspektem jest..."
+- "Istotne jest, aby..." "Niezwykle wazne jest..." "Warto wziac pod uwage..."
+- "Jest to szczegolnie istotne w kontekscie..." "Majac to na uwadze..."
+- Zbyt gladkie przejscia miedzy akapitami i sekcjami
+- Identyczna struktura zdan (podmiot-orzeczenie-dopelnienie w kolko)
+- Nadmierne uzywanie slow: "kluczowy", "istotny", "niezwykly", "fascynujacy", "niezaprzeczalnie"
+
+ZAKAZANE ZNAKI:
+- NIGDY nie uzywaj znaku "—" (em dash). Zamiast niego uzywaj ZAWSZE "-" (zwykly myslnik)
+- NIGDY nie uzywaj "–" (en dash). Zamiast niego uzywaj "-"
+
+JAK PISZA LUDZIE-EKSPERCI:
+- Rozna dlugosc zdan: krotkie (3-5 slow) przeplatane ze srednimi i dlugimi. Czasem zdanie z jednego slowa. Serio.
+- Zaczynaj zdania od "I", "Ale", "Bo", "No i", "Aha," - normalny jezyk
+- Wstaw slang branzowy i potoczne wyrazenia gdzie pasuja
+- Pisz z perspektywy pierwszej osoby czasem: "testowalem", "sprawdzilem", "polecam"
+- Pozwol sobie na dygresje w nawiasach (tak jak robie to teraz)
+- Uzywaj pytan retorycznych do czytelnika
+- Czasem pisz niepelne zdania. Dla efektu.
+- Nie kazdy akapit musi miec idealne przejscie z poprzedniego
+- Dodaj wyrazy potoczne: "spoko", "ogolnie", "w sumie", "no wlasnie", "nie ma co" (gdzie naturalnie pasuja)
+
+ZACHOWAJ NIETKNIETE:
+- Wszystkie fakty, dane liczbowe, nazwy, linki <a href>
+- Naglowki H2/H3 (tresc naglowkow bez zmian)
+- Strukture HTML (h2, h3, p, ul, ol, strong, em, a, blockquote, table)
+- Nie dodawaj ani nie usuwaj linkow
+- Nie dodawaj ani nie usuwaj sekcji
 
 Artykul HTML:
 {content}
 
 Odpowiedz TYLKO przepisanym HTML artykulu, bez komentarzy."""
 
-    return await generate_text(prompt, model=model, max_tokens=max(4096, len(content) * 2))
+    result = await generate_text(prompt, model=model, max_tokens=max(4096, len(content) * 2))
+    # Post-process: force replace em/en dashes with regular hyphen
+    result = result.replace("—", "-").replace("–", "-")
+    return result
 
 
 async def generate_seo_meta(title: str, content_preview: str, language: str, model: str) -> dict:
