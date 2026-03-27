@@ -1710,6 +1710,15 @@ async function runBulkGeneration() {
     const customLinks = customLinksText ? customLinksText.split('\n').map(l => l.trim()).filter(l => l) : [];
     const linksPerArticle = parseInt(document.getElementById('bulk-links-count').value) || 3;
 
+    // Tag range
+    const tagRange = document.getElementById('bulk-tag-range').value.split('-');
+    const tagsMin = parseInt(tagRange[0]) || 4;
+    const tagsMax = parseInt(tagRange[1]) || 8;
+
+    // Enrichments
+    const enrichSel = document.getElementById('bulk-enrichments');
+    const enrichments = Array.from(enrichSel.selectedOptions).map(o => o.value);
+
     // Scheduling
     const publishStatus = document.getElementById('bulk-publish-status').value;
     const dateFrom = document.getElementById('bulk-date-from').value;
@@ -1724,6 +1733,9 @@ async function runBulkGeneration() {
         generate_tags: document.getElementById('bulk-generate-tags').checked,
         generate_seo: document.getElementById('bulk-generate-seo').checked,
         generate_image: document.getElementById('bulk-generate-image').checked,
+        tags_min: tagsMin,
+        tags_max: tagsMax,
+        enrichments: enrichments,
         image_style: document.getElementById('bulk-image-style').value,
         wp_site: document.getElementById('bulk-wp-site').value,
         publish_status: publishStatus,

@@ -629,6 +629,24 @@
                         </select>
                     </div>
                     <div>
+                        <label class="label">Liczba tagow</label>
+                        <select id="bulk-tag-range" class="input">
+                            <option value="2-4">Malo (2-4)</option>
+                            <option value="4-8" selected>Srednio (4-8)</option>
+                            <option value="6-10">Duzo (6-10)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label">Wzbogacenia tresci</label>
+                        <select id="bulk-enrichments" class="input" multiple size="4" style="height:auto">
+                            <option value="faq" selected>FAQ (pytania i odpowiedzi)</option>
+                            <option value="pros-cons">Zalety i wady (tabela)</option>
+                            <option value="checklist" selected>Checklista / lista krokow</option>
+                            <option value="stats">Statystyki i dane liczbowe</option>
+                        </select>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:2px">Ctrl+klik aby wybrac wiele</p>
+                    </div>
+                    <div class="full">
                         <label class="label">Dodatkowe uwagi</label>
                         <input id="bulk-additional-notes" type="text" class="input" placeholder="Instrukcje dla AI...">
                     </div>

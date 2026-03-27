@@ -638,6 +638,9 @@ class BulkItemRequest(BaseModel):
     file_texts: list[str] = []
     custom_links: list[str] = []
     links_per_article: int = 3
+    tags_min: int = 4
+    tags_max: int = 8
+    enrichments: list[str] = []
 
 
 @app.post("/api/internal-links")
@@ -746,8 +749,20 @@ async def generate_single(req: BulkItemRequest):
     settings["paragraphs_max"] = 8
     settings["include_intro"] = True
     settings["include_summary"] = True
-    settings["tags_min"] = 3
-    settings["tags_max"] = 8
+    settings["tags_min"] = req.tags_min
+    settings["tags_max"] = req.tags_max
+
+    # Build enrichment instructions for content generation
+    enrichment_map = {
+        "faq": "Dodaj sekcje FAQ z 3-5 pytaniami i odpowiedziami (uzyj formatu <h3>Pytanie?</h3><p>Odpowiedz</p>)",
+        "pros-cons": "Dodaj sekcje z zaletami i wadami w formie dwoch list (<h3>Zalety</h3><ul>...</ul><h3>Wady</h3><ul>...</ul>)",
+        "checklist": "Dodaj praktyczna checkliste lub liste krokow (numerowana lista <ol> z konkretnymi punktami do wykonania)",
+        "stats": "Wplec 3-5 konkretnych statystyk, danych liczbowych lub procentow w tresci artykulu (moga byc przyblizone/orientacyjne)",
+    }
+    enrichment_notes = [enrichment_map[e] for e in req.enrichments if e in enrichment_map]
+    if enrichment_notes:
+        extra = "WZBOGACENIA TRESCI (dodaj te elementy w artykule):\n" + "\n".join(f"- {n}" for n in enrichment_notes)
+        settings["additional_notes"] = (settings.get("additional_notes", "") + "\n\n" + extra).strip()
 
     # 1. Outline
     logger.info(f"  Step 1/7: Generating outline...")
