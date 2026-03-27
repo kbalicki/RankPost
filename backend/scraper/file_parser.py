@@ -41,8 +41,26 @@ def parse_xlsx(content: bytes) -> str:
     return "\n".join(lines)
 
 
+def parse_md(content: bytes) -> str:
+    import re as _re
+    text = parse_txt(content)
+    # Strip markdown syntax but keep readable text
+    text = _re.sub(r'!\[([^\]]*)\]\([^)]+\)', r'\1', text)  # images
+    text = _re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)   # links
+    text = _re.sub(r'#{1,6}\s+', '', text)                   # headings
+    text = _re.sub(r'\*{1,3}([^*]+)\*{1,3}', r'\1', text)   # bold/italic
+    text = _re.sub(r'`{1,3}[^`]*`{1,3}', '', text)          # code
+    text = _re.sub(r'^[-*+]\s+', '', text, flags=_re.MULTILINE)  # list markers
+    text = _re.sub(r'^\d+\.\s+', '', text, flags=_re.MULTILINE)  # numbered lists
+    text = _re.sub(r'^>\s+', '', text, flags=_re.MULTILINE)      # blockquotes
+    text = _re.sub(r'---+|===+', '', text)                   # horizontal rules
+    return text
+
+
 PARSERS = {
     ".txt": parse_txt,
+    ".md": parse_md,
+    ".markdown": parse_md,
     ".docx": parse_docx,
     ".pdf": parse_pdf,
     ".xlsx": parse_xlsx,
