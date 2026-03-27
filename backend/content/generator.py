@@ -186,16 +186,20 @@ Odpowiedz TYLKO jako JSON array z ID kategorii, np: [1, 5]"""
     return _parse_json_response(result, fallback=[])
 
 
-IMAGE_STYLE_PROMPTS = {
-    "photorealistic": "Photorealistic, high-quality photograph. Natural lighting, sharp focus, shot on Canon EOS R5. No text, no watermarks.",
-    "editorial": "Editorial magazine-quality photograph. Professional lighting, cinematic composition, bokeh background. No text.",
-    "minimalist": "Minimalist flat design illustration. Clean lines, pastel colors, simple geometric shapes. No text.",
-    "watercolor": "Artistic watercolor painting style. Soft colors, flowing brushstrokes, artistic and elegant. No text.",
-    "3d-render": "3D rendered scene, smooth materials, soft studio lighting, clay render style. Modern and clean. No text.",
-    "cinematic": "Cinematic wide-angle shot, dramatic lighting, film grain, moody atmosphere. Movie poster quality. No text.",
-}
+FALLBACK_IMAGE_PROMPT = "Photorealistic high-quality photograph. Natural lighting, sharp focus. No text, no watermarks."
 
-async def generate_featured_image_url(title: str, image_style: str = "photorealistic") -> str:
-    style_prompt = IMAGE_STYLE_PROMPTS.get(image_style, IMAGE_STYLE_PROMPTS["photorealistic"])
+async def _get_image_style_prompt(style_name: str) -> str:
+    """Fetch image style prompt from DB by name."""
+    from backend.database import get_db
+    db = await get_db()
+    try:
+        cursor = await db.execute("SELECT prompt FROM image_styles WHERE name = ?", (style_name,))
+        row = await cursor.fetchone()
+        return row["prompt"] if row else FALLBACK_IMAGE_PROMPT
+    finally:
+        await db.close()
+
+async def generate_featured_image_url(title: str, image_style: str = "Fotorealistyczne") -> str:
+    style_prompt = await _get_image_style_prompt(image_style)
     prompt = f"Blog header image for article: '{title}'. {style_prompt}"
     return await generate_image(prompt)

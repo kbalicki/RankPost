@@ -189,14 +189,7 @@
                         </div>
                         <div id="wiz-image-style-row" class="hidden">
                             <label class="label">Styl zdjecia</label>
-                            <select id="wiz-image-style" class="input">
-                                <option value="photorealistic" selected>Fotorealistyczne (zdjecie)</option>
-                                <option value="editorial">Edytorskie (magazynowe)</option>
-                                <option value="cinematic">Kinowe (dramatyczne)</option>
-                                <option value="minimalist">Minimalistyczne (flat design)</option>
-                                <option value="watercolor">Akwarela (artystyczne)</option>
-                                <option value="3d-render">3D render (studio)</option>
-                            </select>
+                            <select id="wiz-image-style" class="input"><option value="">-- ladowanie --</option></select>
                         </div>
                     </div>
                 </div>
@@ -659,14 +652,7 @@
                     </div>
                     <div id="bulk-image-style-row" class="hidden">
                         <label class="label">Styl zdjecia</label>
-                        <select id="bulk-image-style" class="input">
-                            <option value="photorealistic" selected>Fotorealistyczne (zdjecie)</option>
-                            <option value="editorial">Edytorskie (magazynowe)</option>
-                            <option value="cinematic">Kinowe (dramatyczne)</option>
-                            <option value="minimalist">Minimalistyczne (flat design)</option>
-                            <option value="watercolor">Akwarela (artystyczne)</option>
-                            <option value="3d-render">3D render (studio)</option>
-                        </select>
+                        <select id="bulk-image-style" class="input"><option value="">-- ladowanie --</option></select>
                     </div>
                 </div>
             </div>
@@ -1042,6 +1028,28 @@
                     </div>
                     <div class="btn-row">
                         <button onclick="addWpSite()" class="btn-primary">Dodaj serwis</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Style zdjec AI</div>
+                <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Kazdy styl to nazwa + prompt dla DALL-E. Prompt jest laczony z tytulem artykulu.</p>
+                <div id="image-styles-list" style="margin-bottom:16px"></div>
+                <div style="border-top:1px solid var(--border);padding-top:16px">
+                    <div style="font-weight:500;margin-bottom:12px;font-size:14px">Dodaj nowy styl</div>
+                    <div class="form-grid">
+                        <div>
+                            <label class="label">Nazwa (jedno slowo)</label>
+                            <input id="new-imgstyle-name" type="text" class="input" placeholder="np. Artystyczne">
+                        </div>
+                        <div class="full">
+                            <label class="label">Prompt DALL-E (opis stylu po angielsku)</label>
+                            <textarea id="new-imgstyle-prompt" class="input" style="height:60px;font-size:12px" placeholder="Photorealistic photograph, natural lighting, sharp focus. No text, no watermarks."></textarea>
+                        </div>
+                    </div>
+                    <div class="btn-row">
+                        <button onclick="addImageStyle()" class="btn-primary">Dodaj styl</button>
                     </div>
                 </div>
             </div>

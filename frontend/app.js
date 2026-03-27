@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadStyles();
     loadSettings();
     loadStructureTemplates();
+    loadImageStyles();
     initGenerator();
 
     document.getElementById('target-length').addEventListener('change', (e) => {
@@ -58,7 +59,7 @@ function showTab(name) {
     document.getElementById(`tab-${name}`).classList.add('active');
     if (name === 'articles') loadArticles();
     if (name === 'styles') { loadStyles(); loadStructureTemplates(); }
-    if (name === 'settings') loadSettings();
+    if (name === 'settings') { loadSettings(); loadImageStyles(); }
     if (name === 'bulk') initBulk();
     if (name === 'rewrite') initRewrite();
     if (name === 'analytics') initAnalytics();
@@ -1559,6 +1560,75 @@ function initAnalytics() {
         sel.innerHTML = '<option value="">-- wybierz --</option>' +
             data.sites.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('');
     }).catch(() => {});
+}
+
+// --- Image Styles ---
+let imageStyles = [];
+
+async function loadImageStyles() {
+    try {
+        const data = await apiGet('/api/image-styles');
+        imageStyles = data.styles || [];
+        renderImageStyleSelects();
+        renderImageStylesList();
+    } catch (e) {
+        console.error('Failed to load image styles', e);
+    }
+}
+
+function renderImageStyleSelects() {
+    const selectors = ['wiz-image-style', 'bulk-image-style'];
+    for (const id of selectors) {
+        const sel = document.getElementById(id);
+        if (!sel) continue;
+        sel.innerHTML = imageStyles.map((s, i) =>
+            `<option value="${escapeHtml(s.name)}"${i === 0 ? ' selected' : ''}>${escapeHtml(s.name)}</option>`
+        ).join('') || '<option value="">Brak stylow</option>';
+    }
+}
+
+function renderImageStylesList() {
+    const container = document.getElementById('image-styles-list');
+    if (!container) return;
+    if (!imageStyles.length) {
+        container.innerHTML = '<p style="color:var(--text-muted);font-size:14px">Brak stylow zdjec</p>';
+        return;
+    }
+    container.innerHTML = imageStyles.map(s => `
+        <div class="list-item" style="margin-bottom:6px">
+            <div class="list-item-info">
+                <p>${escapeHtml(s.name)}</p>
+                <p style="font-size:11px;max-width:500px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(s.prompt)}</p>
+            </div>
+            <div class="list-item-actions">
+                <button onclick="deleteImageStyle(${s.id})" class="btn-danger">Usun</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function addImageStyle() {
+    const name = document.getElementById('new-imgstyle-name').value.trim();
+    const prompt = document.getElementById('new-imgstyle-prompt').value.trim();
+    if (!name || !prompt) return alert('Podaj nazwe i prompt');
+    try {
+        await apiPost('/api/image-styles', { name, prompt });
+        document.getElementById('new-imgstyle-name').value = '';
+        document.getElementById('new-imgstyle-prompt').value = '';
+        loadImageStyles();
+    } catch (e) {
+        alert('Blad: ' + e.message);
+    }
+}
+
+async function deleteImageStyle(id) {
+    if (!confirm('Na pewno usunac ten styl?')) return;
+    try {
+        await apiDelete(`/api/image-styles/${id}`);
+        loadImageStyles();
+    } catch (e) {
+        alert('Blad: ' + e.message);
+    }
 }
 
 // --- Bulk Generation ---

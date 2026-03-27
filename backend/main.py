@@ -322,9 +322,9 @@ async def featured_image(req: FeaturedImageRequest):
 
 @app.post("/api/image-gallery")
 async def image_gallery(req: ImageGalleryRequest):
-    from backend.content.generator import IMAGE_STYLE_PROMPTS
+    from backend.content.generator import _get_image_style_prompt
     from backend.ai.client import generate_image
-    style_prompt = IMAGE_STYLE_PROMPTS.get(req.image_style, IMAGE_STYLE_PROMPTS["photorealistic"])
+    style_prompt = await _get_image_style_prompt(req.image_style)
     urls = []
     variations = [
         f"Blog header for '{req.title}'. Wide angle, establishing shot. {style_prompt}",
@@ -537,6 +537,50 @@ async def delete_structure_template(tpl_id: int):
     db = await get_db()
     try:
         await db.execute("DELETE FROM structure_templates WHERE id = ?", (tpl_id,))
+        await db.commit()
+        return {"ok": True}
+    finally:
+        await db.close()
+
+
+# --- Image Styles CRUD ---
+
+class ImageStyleCreate(BaseModel):
+    name: str
+    prompt: str
+
+@app.get("/api/image-styles")
+async def list_image_styles():
+    db = await get_db()
+    try:
+        cursor = await db.execute("SELECT * FROM image_styles ORDER BY id")
+        rows = await cursor.fetchall()
+        return {"styles": [dict(r) for r in rows]}
+    except Exception:
+        return {"styles": []}
+    finally:
+        await db.close()
+
+@app.post("/api/image-styles")
+async def create_image_style(req: ImageStyleCreate):
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            "INSERT INTO image_styles (name, prompt) VALUES (?, ?)",
+            (req.name, req.prompt),
+        )
+        await db.commit()
+        return {"id": cursor.lastrowid, "name": req.name}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await db.close()
+
+@app.delete("/api/image-styles/{style_id}")
+async def delete_image_style(style_id: int):
+    db = await get_db()
+    try:
+        await db.execute("DELETE FROM image_styles WHERE id = ?", (style_id,))
         await db.commit()
         return {"ok": True}
     finally:

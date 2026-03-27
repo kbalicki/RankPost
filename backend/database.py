@@ -35,6 +35,13 @@ CREATE TABLE IF NOT EXISTS structure_templates (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS image_styles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    prompt TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -49,6 +56,14 @@ CREATE TABLE IF NOT EXISTS wp_sites (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 """
+
+DEFAULT_IMAGE_STYLES = [
+    ("Fotorealistyczne", "Photorealistic high-quality photograph. Natural lighting, sharp focus, shot on Canon EOS R5 with 50mm lens. Authentic, real-world scene. No text, no watermarks, no AI artifacts."),
+    ("Kinowe", "Cinematic wide-angle shot, dramatic golden hour lighting, film grain, shallow depth of field, moody atmosphere. Movie still quality. No text."),
+    ("Edytorskie", "Editorial magazine-quality photograph. Professional studio lighting, clean composition, bokeh background. Vogue/National Geographic style. No text."),
+    ("Stockowe", "Premium stock photography style. Bright, clean, well-lit. Diverse, natural-looking people in context. Corporate-friendly. No text, no watermarks."),
+    ("Flatlay", "Overhead flat lay photography. Objects arranged on clean surface, soft shadows, pastel tones. Instagram aesthetic. No text."),
+]
 
 DEFAULT_STYLES = [
     ("Informacyjny", "Rzeczowy, obiektywny ton. Fakty i dane na pierwszym planie. Bez opinii autora."),
@@ -74,6 +89,11 @@ async def init_db():
             await db.execute(
                 "INSERT OR IGNORE INTO style_templates (name, description) VALUES (?, ?)",
                 (name, desc),
+            )
+        for name, prompt in DEFAULT_IMAGE_STYLES:
+            await db.execute(
+                "INSERT OR IGNORE INTO image_styles (name, prompt) VALUES (?, ?)",
+                (name, prompt),
             )
         await db.commit()
     finally:
