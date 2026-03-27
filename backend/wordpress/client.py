@@ -89,6 +89,69 @@ async def get_posts(site_name: str, per_page: int = 50) -> list[dict]:
     return [{"id": p["id"], "title": p["title"]["rendered"], "link": p["link"]} for p in resp.json()]
 
 
+async def detect_seo_plugin(site_name: str) -> str | None:
+    """Detect which SEO plugin is active: yoast, rankmath, aioseo, or None."""
+    cfg = await _get_site_config(site_name)
+    base = cfg["url"].rstrip("/")
+    headers = {"Authorization": _auth_header(cfg["user"], cfg["app_password"])}
+    async with httpx.AsyncClient(timeout=15) as client:
+        # Check Yoast
+        try:
+            resp = await client.get(f"{base}/wp-json/yoast/v1/get_head?url={base}", headers=headers)
+            if resp.status_code == 200:
+                return "yoast"
+        except Exception:
+            pass
+        # Check RankMath
+        try:
+            resp = await client.get(f"{base}/wp-json/rankmath/v1/getHead?url={base}", headers=headers)
+            if resp.status_code == 200:
+                return "rankmath"
+        except Exception:
+            pass
+        # Check AIOSEO
+        try:
+            resp = await client.get(f"{base}/wp-json/aioseo/v1/ping", headers=headers)
+            if resp.status_code == 200:
+                return "aioseo"
+        except Exception:
+            pass
+    return None
+
+
+def build_seo_meta_fields(seo_plugin: str | None, meta_title: str, meta_description: str) -> dict:
+    """Build the correct meta fields dict for the detected SEO plugin."""
+    if not meta_title and not meta_description:
+        return {}
+
+    if seo_plugin == "yoast":
+        meta = {}
+        if meta_title:
+            meta["yoast_wpseo_title"] = meta_title
+        if meta_description:
+            meta["yoast_wpseo_metadesc"] = meta_description
+        return {"meta": meta}
+
+    elif seo_plugin == "rankmath":
+        meta = {}
+        if meta_title:
+            meta["rank_math_title"] = meta_title
+        if meta_description:
+            meta["rank_math_description"] = meta_description
+        return {"meta": meta}
+
+    elif seo_plugin == "aioseo":
+        meta = {}
+        if meta_title:
+            meta["_aioseo_title"] = meta_title
+        if meta_description:
+            meta["_aioseo_description"] = meta_description
+        return {"meta": meta}
+
+    # No known SEO plugin - try standard WP meta as fallback
+    return {}
+
+
 async def create_post(site_name: str, post_data: dict) -> dict:
     cfg = await _get_site_config(site_name)
     url = f"{cfg['url'].rstrip('/')}/wp-json/wp/v2/posts"

@@ -760,16 +760,17 @@
                         <label class="label">Status publikacji</label>
                         <select id="bulk-publish-status" class="input" onchange="bulkToggleSchedule()">
                             <option value="draft" selected>Szkic (draft)</option>
-                            <option value="publish">Opublikuj</option>
-                            <option value="future">Zaplanuj (losowe daty)</option>
+                            <option value="publish">Opublikuj natychmiast</option>
+                            <option value="future">Zaplanuj (future)</option>
                         </select>
                     </div>
-                    <div id="bulk-schedule-range" class="hidden">
-                        <label class="label">Zakres dat (losowe daty z tego zakresu)</label>
+                    <div id="bulk-schedule-range">
+                        <label class="label">Losowe daty publikacji (zakres)</label>
                         <div style="display:flex;gap:8px">
-                            <input id="bulk-date-from" type="date" class="input" value="2026-03-01">
-                            <input id="bulk-date-to" type="date" class="input" value="2026-03-31">
+                            <input id="bulk-date-from" type="date" class="input" value="2026-01-01">
+                            <input id="bulk-date-to" type="date" class="input" value="2026-12-31">
                         </div>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:4px">Kazdy artykul dostanie losowa date z tego zakresu. Dla szkicow ustawia planowana date, dla "future" - harmonogram publikacji.</p>
                     </div>
                 </div>
             </div>

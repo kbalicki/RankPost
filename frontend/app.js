@@ -1721,7 +1721,8 @@ function initBulk() {
 
 function bulkToggleSchedule() {
     const status = document.getElementById('bulk-publish-status').value;
-    document.getElementById('bulk-schedule-range').classList.toggle('hidden', status !== 'future');
+    // Show date range for both 'future' (scheduled) and 'draft' (planned date)
+    document.getElementById('bulk-schedule-range').classList.toggle('hidden', status === 'publish');
 }
 
 function bulkRandomDate(from, to) {
@@ -1922,7 +1923,7 @@ async function runBulkGeneration() {
 
         // Per-article scheduled date
         let scheduledDate = '';
-        if (publishStatus === 'future' && dateFrom && dateTo) {
+        if (publishStatus !== 'publish' && dateFrom && dateTo) {
             scheduledDate = bulkRandomDate(dateFrom, dateTo);
         }
 

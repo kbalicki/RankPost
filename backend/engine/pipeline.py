@@ -1,6 +1,67 @@
+import re
 import json
 import httpx
 from backend.scraper.scraper import scrape_multiple
+
+
+def html_to_gutenberg(html: str) -> str:
+    """Convert raw HTML to WordPress Gutenberg block markup."""
+    result = []
+    # Split into top-level elements. We parse tag by tag.
+    # Match top-level HTML tags
+    pattern = re.compile(
+        r'(<h[23][^>]*>.*?</h[23]>)|'
+        r'(<p[^>]*>.*?</p>)|'
+        r'(<ul[^>]*>.*?</ul>)|'
+        r'(<ol[^>]*>.*?</ol>)|'
+        r'(<blockquote[^>]*>.*?</blockquote>)|'
+        r'(<table[^>]*>.*?</table>)|'
+        r'(<figure[^>]*>.*?</figure>)',
+        re.DOTALL | re.IGNORECASE
+    )
+
+    last_end = 0
+    for m in pattern.finditer(html):
+        # Any text between matches (shouldn't happen in well-formed HTML but handle it)
+        gap = html[last_end:m.start()].strip()
+        if gap:
+            result.append(f'<!-- wp:html -->\n{gap}\n<!-- /wp:html -->')
+
+        tag_html = m.group(0)
+        tag_lower = tag_html.lower()
+
+        if tag_lower.startswith('<h2'):
+            inner = re.sub(r'</?h2[^>]*>', '', tag_html)
+            result.append(f'<!-- wp:heading -->\n<h2 class="wp-block-heading">{inner}</h2>\n<!-- /wp:heading -->')
+        elif tag_lower.startswith('<h3'):
+            inner = re.sub(r'</?h3[^>]*>', '', tag_html)
+            result.append(f'<!-- wp:heading {{"level":3}} -->\n<h3 class="wp-block-heading">{inner}</h3>\n<!-- /wp:heading -->')
+        elif tag_lower.startswith('<p'):
+            result.append(f'<!-- wp:paragraph -->\n{tag_html}\n<!-- /wp:paragraph -->')
+        elif tag_lower.startswith('<ul'):
+            result.append(f'<!-- wp:list -->\n{tag_html}\n<!-- /wp:list -->')
+        elif tag_lower.startswith('<ol'):
+            result.append(f'<!-- wp:list {{"ordered":true}} -->\n{tag_html}\n<!-- /wp:list -->')
+        elif tag_lower.startswith('<blockquote'):
+            inner = tag_html
+            if 'wp-block-quote' not in inner:
+                inner = inner.replace('<blockquote', '<blockquote class="wp-block-quote"', 1)
+            result.append(f'<!-- wp:quote -->\n{inner}\n<!-- /wp:quote -->')
+        elif tag_lower.startswith('<table'):
+            result.append(f'<!-- wp:table -->\n<figure class="wp-block-table">{tag_html}</figure>\n<!-- /wp:table -->')
+        elif tag_lower.startswith('<figure'):
+            result.append(f'<!-- wp:image -->\n{tag_html}\n<!-- /wp:image -->')
+        else:
+            result.append(f'<!-- wp:html -->\n{tag_html}\n<!-- /wp:html -->')
+
+        last_end = m.end()
+
+    # Remaining content after last match
+    remainder = html[last_end:].strip()
+    if remainder:
+        result.append(f'<!-- wp:html -->\n{remainder}\n<!-- /wp:html -->')
+
+    return '\n\n'.join(result)
 from backend.content.generator import (
     generate_outline,
     generate_article_content,
@@ -14,6 +75,8 @@ from backend.wordpress.client import (
     create_or_get_tag,
     upload_media,
     create_post,
+    detect_seo_plugin,
+    build_seo_meta_fields,
 )
 from backend.database import get_db
 
@@ -101,15 +164,26 @@ async def step_publish(
         media = await upload_media(wp_site, image_bytes, f"{slug or 'featured'}.png")
         featured_media_id = media["id"]
 
+    # Convert HTML to Gutenberg blocks
+    gutenberg_content = html_to_gutenberg(content)
+
+    # Detect SEO plugin and build meta fields
+    seo_plugin = await detect_seo_plugin(wp_site)
+    seo_fields = build_seo_meta_fields(seo_plugin, meta_title, meta_description)
+
     post_data = {
         "title": title,
-        "content": content,
+        "content": gutenberg_content,
         "status": publish_status,
         "categories": category_ids,
         "tags": tag_ids,
         "slug": slug,
     }
-    if scheduled_date and publish_status == "future":
+    # Merge SEO meta fields (Yoast / RankMath / AIOSEO)
+    if seo_fields:
+        post_data.update(seo_fields)
+    # Set date for both future (scheduling) and draft (planned date)
+    if scheduled_date:
         post_data["date"] = scheduled_date
     if featured_media_id:
         post_data["featured_media"] = featured_media_id
