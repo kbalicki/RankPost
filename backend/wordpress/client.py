@@ -90,66 +90,111 @@ async def get_posts(site_name: str, per_page: int = 50) -> list[dict]:
 
 
 async def detect_seo_plugin(site_name: str) -> str | None:
-    """Detect which SEO plugin is active: yoast, rankmath, aioseo, or None."""
+    """Detect which SEO plugin is active by checking REST API namespaces."""
+    import logging
+    logger = logging.getLogger("rankpost")
     cfg = await _get_site_config(site_name)
     base = cfg["url"].rstrip("/")
     headers = {"Authorization": _auth_header(cfg["user"], cfg["app_password"])}
     async with httpx.AsyncClient(timeout=15) as client:
-        # Check Yoast
         try:
-            resp = await client.get(f"{base}/wp-json/yoast/v1/get_head?url={base}", headers=headers)
-            if resp.status_code == 200:
-                return "yoast"
-        except Exception:
-            pass
-        # Check RankMath
-        try:
-            resp = await client.get(f"{base}/wp-json/rankmath/v1/getHead?url={base}", headers=headers)
-            if resp.status_code == 200:
-                return "rankmath"
-        except Exception:
-            pass
-        # Check AIOSEO
-        try:
-            resp = await client.get(f"{base}/wp-json/aioseo/v1/ping", headers=headers)
-            if resp.status_code == 200:
-                return "aioseo"
-        except Exception:
-            pass
+            resp = await client.get(f"{base}/wp-json/", headers=headers)
+            if resp.status_code != 200:
+                return None
+            namespaces = resp.json().get("namespaces", [])
+            for ns in namespaces:
+                if ns.startswith("yoast"):
+                    logger.info(f"  SEO plugin detected: yoast (namespace: {ns})")
+                    return "yoast"
+                if ns.startswith("rankmath"):
+                    logger.info(f"  SEO plugin detected: rankmath (namespace: {ns})")
+                    return "rankmath"
+                if ns.startswith("aioseo"):
+                    logger.info(f"  SEO plugin detected: aioseo (namespace: {ns})")
+                    return "aioseo"
+        except Exception as e:
+            logger.warning(f"  SEO plugin detection failed: {e}")
     return None
 
 
-def build_seo_meta_fields(seo_plugin: str | None, meta_title: str, meta_description: str) -> dict:
-    """Build the correct meta fields dict for the detected SEO plugin."""
+async def set_seo_meta(site_name: str, post_id: int, seo_plugin: str | None, meta_title: str, meta_description: str):
+    """Set SEO meta title/description via the appropriate plugin API or fallback."""
+    import logging
+    logger = logging.getLogger("rankpost")
+
     if not meta_title and not meta_description:
-        return {}
+        return
 
-    if seo_plugin == "yoast":
-        meta = {}
-        if meta_title:
-            meta["yoast_wpseo_title"] = meta_title
+    cfg = await _get_site_config(site_name)
+    base = cfg["url"].rstrip("/")
+    headers = {
+        "Authorization": _auth_header(cfg["user"], cfg["app_password"]),
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) RankPost/1.0",
+    }
+
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+        # Method 1: Try plugin-specific API
+        if seo_plugin == "rankmath":
+            meta = {}
+            if meta_title:
+                meta["rank_math_title"] = meta_title
+            if meta_description:
+                meta["rank_math_description"] = meta_description
+            try:
+                resp = await client.post(
+                    f"{base}/wp-json/rankmath/v1/updateMeta",
+                    headers=headers,
+                    json={"objectID": post_id, "objectType": "post", "meta": meta},
+                )
+                if resp.status_code == 200:
+                    logger.info(f"  RankMath SEO meta set via API for post {post_id}")
+                    return
+                logger.warning(f"  RankMath API returned {resp.status_code}, trying fallback")
+            except Exception as e:
+                logger.warning(f"  RankMath API failed: {e}, trying fallback")
+
+        # Method 2: Try via standard WP meta (works if plugin registers fields in REST API)
+        meta_fields = {}
+        if seo_plugin == "yoast":
+            if meta_title:
+                meta_fields["yoast_wpseo_title"] = meta_title
+            if meta_description:
+                meta_fields["yoast_wpseo_metadesc"] = meta_description
+        elif seo_plugin == "rankmath":
+            if meta_title:
+                meta_fields["rank_math_title"] = meta_title
+            if meta_description:
+                meta_fields["rank_math_description"] = meta_description
+        elif seo_plugin == "aioseo":
+            if meta_title:
+                meta_fields["_aioseo_title"] = meta_title
+            if meta_description:
+                meta_fields["_aioseo_description"] = meta_description
+
+        if meta_fields:
+            try:
+                resp = await client.post(
+                    f"{base}/wp-json/wp/v2/posts/{post_id}",
+                    headers=headers,
+                    json={"meta": meta_fields},
+                )
+                logger.info(f"  SEO meta set via WP meta for post {post_id} ({seo_plugin}): {resp.status_code}")
+            except Exception as e:
+                logger.warning(f"  WP meta update failed: {e}")
+
+        # Method 3: Always set excerpt as SEO description fallback
+        # (RankMath/Yoast use excerpt as fallback description if no meta set)
         if meta_description:
-            meta["yoast_wpseo_metadesc"] = meta_description
-        return {"meta": meta}
-
-    elif seo_plugin == "rankmath":
-        meta = {}
-        if meta_title:
-            meta["rank_math_title"] = meta_title
-        if meta_description:
-            meta["rank_math_description"] = meta_description
-        return {"meta": meta}
-
-    elif seo_plugin == "aioseo":
-        meta = {}
-        if meta_title:
-            meta["_aioseo_title"] = meta_title
-        if meta_description:
-            meta["_aioseo_description"] = meta_description
-        return {"meta": meta}
-
-    # No known SEO plugin - try standard WP meta as fallback
-    return {}
+            try:
+                resp = await client.post(
+                    f"{base}/wp-json/wp/v2/posts/{post_id}",
+                    headers=headers,
+                    json={"excerpt": meta_description},
+                )
+                logger.info(f"  Excerpt set as SEO description fallback for post {post_id}: {resp.status_code}")
+            except Exception as e:
+                logger.warning(f"  Excerpt update failed: {e}")
 
 
 async def create_post(site_name: str, post_data: dict) -> dict:

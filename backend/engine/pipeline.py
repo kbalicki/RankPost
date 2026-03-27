@@ -79,7 +79,7 @@ from backend.wordpress.client import (
     upload_media,
     create_post,
     detect_seo_plugin,
-    build_seo_meta_fields,
+    set_seo_meta,
 )
 from backend.database import get_db
 
@@ -170,9 +170,8 @@ async def step_publish(
     # Convert HTML to Gutenberg blocks
     gutenberg_content = html_to_gutenberg(content)
 
-    # Detect SEO plugin and build meta fields
+    # Detect SEO plugin
     seo_plugin = await detect_seo_plugin(wp_site)
-    seo_fields = build_seo_meta_fields(seo_plugin, meta_title, meta_description)
 
     post_data = {
         "title": title,
@@ -182,9 +181,6 @@ async def step_publish(
         "tags": tag_ids,
         "slug": slug,
     }
-    # Merge SEO meta fields (Yoast / RankMath / AIOSEO)
-    if seo_fields:
-        post_data.update(seo_fields)
     # Set date for both future (scheduling) and draft (planned date)
     if scheduled_date:
         post_data["date"] = scheduled_date
@@ -195,6 +191,13 @@ async def step_publish(
     logger.debug(f"  Post data keys: {list(post_data.keys())}")
     result = await create_post(wp_site, post_data)
     logger.info(f"  Published: id={result.get('id')} status={result.get('status')} link={result.get('link')}")
+
+    # Set SEO meta after post creation (separate API calls for reliability)
+    if meta_title or meta_description:
+        post_id = result.get("id")
+        if post_id:
+            await set_seo_meta(wp_site, post_id, seo_plugin, meta_title, meta_description)
+
     return result
 
 

@@ -181,13 +181,21 @@ Odpowiedz TYLKO w formacie JSON:
 
 async def generate_tags(title: str, content_preview: str, tags_min: int, tags_max: int, language: str, model: str) -> list[str]:
     lang_label = "polskim" if language == "pl" else "angielskim"
-    prompt = f"""Wygeneruj tagi (slowa kluczowe) dla artykulu w jezyku {lang_label}.
+    prompt = f"""Wygeneruj tagi dla artykulu w jezyku {lang_label}.
 
 Tytul: {title}
 Fragment: {content_preview[:2000]}
 
+Zasady:
+- Tagi musza byc KROTKIE i PROSTE: 1-2 slowa, max 3
+- Uzywaj ogolnych, uniwersalnych tagow: nazwy miejsc, kategorii, typow uslug
+- Przyklady dobrych tagow: "Turcja", "all inclusive", "hotele", "wakacje", "noclegi", "poradnik"
+- Przyklady ZLYCH tagow: "najlepsze hotele w turcji 2026", "jak wybrac hotel all inclusive"
+- Tagi to slowa kluczowe, NIE tytuly ani zdania
+- Male litery (chyba ze nazwa wlasna jak "Turcja")
+
 Wygeneruj od {tags_min} do {tags_max} tagow.
-Odpowiedz TYLKO jako JSON array stringow, np: ["tag1", "tag2", "tag3"]"""
+Odpowiedz TYLKO jako JSON array stringow, np: ["Turcja", "all inclusive", "hotele"]"""
 
     result = await generate_text(prompt, model=model, max_tokens=512)
     return _parse_json_response(result, fallback=[])
